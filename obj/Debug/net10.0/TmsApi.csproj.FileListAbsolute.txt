@@ -26,3 +26,12 @@ C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\refint\TmsApi.dll
 C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\TmsApi.pdb
 C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\TmsApi.genruntimeconfig.cache
 C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\ref\TmsApi.dll
+C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\TmsApi.sourcelink.json
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\appsettings.Development.json
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\appsettings.json
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\TmsApi.staticwebassets.endpoints.json
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\TmsApi.exe
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\TmsApi.deps.json
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\TmsApi.runtimeconfig.json
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\TmsApi.dll
+C:\Users\toshiba\Desktop\TmsApi\tmpbuild\TmsApi.pdb
