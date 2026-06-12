@@ -51,8 +51,9 @@ public class EnrollmentService : IEnrollmentService
 
     public Task<IReadOnlyList<EnrollmentRecord>> GetAllAsync()
     {
-        IReadOnlyList<EnrollmentRecord> all = _store.Values.ToList();
-        return Task.FromResult(all);
+        var all = _store.Values.ToList();
+        _logger.LogInformation("Retrieved all enrollments, count {EnrollmentCount}", all.Count);
+        return Task.FromResult((IReadOnlyList<EnrollmentRecord>)all);
     }
 
     public Task<bool> DeleteAsync(string id)

@@ -2,6 +2,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
+builder.Services.AddControllers();
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
@@ -14,7 +15,7 @@ builder.Services
     .AddOptions<PaymentOptions>()
     .BindConfiguration("Payments")
     .ValidateDataAnnotations()
-    .ValidateOnStart();
+    .ValidateOnStart();//validation happens at startup, not on first request
 
 builder.Services.AddSingleton<EnrollmentWorker>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
@@ -23,6 +24,7 @@ var app = builder.Build();
 
 app.UseRouting();
 
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseAuthentication();
 
 app.UseAuthorization();
@@ -44,4 +46,7 @@ app.MapGet("/api/enrollments/worker-smoke", (EnrollmentWorker worker) =>
 })
 .RequireAuthorization();
 
+app.MapControllers();
+
 app.Run();
+
