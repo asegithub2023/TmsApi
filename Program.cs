@@ -3,6 +3,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddProblemDetails();
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
@@ -25,9 +26,11 @@ var app = builder.Build();
 app.UseRouting();
 
 app.UseMiddleware<RequestLoggingMiddleware>();
-app.UseAuthentication();
 
+app.UseAuthentication();
 app.UseAuthorization();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 app.MapGet("/api/assessments/results", () =>
 {
@@ -43,7 +46,14 @@ app.MapGet("/api/enrollments/worker-smoke", (EnrollmentWorker worker) =>
 {
     worker.ProcessBatch();
     return Results.Ok("processed");
+});
+
+app.MapGet("/api/error", () =>
+{
+    throw new TmsDatabaseException(
+        "Simulated database failure for ProblemDetails testing");
 })
+
 .RequireAuthorization();
 
 app.MapControllers();
