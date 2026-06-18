@@ -1,8 +1,12 @@
+using Scalar.AspNetCore;
+using Microsoft.AspNetCore.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddOpenApi();
+builder.Services.AddProblemDetails();
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
@@ -25,9 +29,11 @@ var app = builder.Build();
 app.UseRouting();
 
 app.UseMiddleware<RequestLoggingMiddleware>();
-app.UseAuthentication();
 
+app.UseAuthentication();
 app.UseAuthorization();
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 app.MapGet("/api/assessments/results", () =>
 {
@@ -43,8 +49,26 @@ app.MapGet("/api/enrollments/worker-smoke", (EnrollmentWorker worker) =>
 {
     worker.ProcessBatch();
     return Results.Ok("processed");
-})
-.RequireAuthorization();
+});
+
+app.MapGet("/api/error", () =>
+{
+    throw new TmsDatabaseException(
+        "Simulated database failure for ProblemDetails testing");
+});
+
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+else
+{
+    app.UseExceptionHandler();
+}
+
+//.RequireAuthorization();
 
 app.MapControllers();
 
