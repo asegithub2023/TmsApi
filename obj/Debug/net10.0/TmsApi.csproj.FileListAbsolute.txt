@@ -40,3 +40,9 @@ C:\Users\toshiba\Desktop\TmsApi\bin\Debug\net10.0\tmpbuild\appsettings.json
 C:\Users\toshiba\Desktop\TmsApi\bin\Debug\net10.0\tmpbuild\TmsApi.deps.json
 C:\Users\toshiba\Desktop\TmsApi\bin\Debug\net10.0\tmpbuild\TmsApi.runtimeconfig.json
 C:\Users\toshiba\Desktop\TmsApi\bin\Debug\net10.0\tmpbuild\TmsApi.staticwebassets.endpoints.json
+C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\TmsApi.csproj.AssemblyReference.cache
+C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\TmsApi.MvcApplicationPartsAssemblyInfo.cs
+C:\Users\toshiba\Desktop\TmsApi\bin\Debug\net10.0\Microsoft.AspNetCore.OpenApi.dll
+C:\Users\toshiba\Desktop\TmsApi\bin\Debug\net10.0\Microsoft.OpenApi.dll
+C:\Users\toshiba\Desktop\TmsApi\bin\Debug\net10.0\Scalar.AspNetCore.dll
+C:\Users\toshiba\Desktop\TmsApi\obj\Debug\net10.0\TmsApi.csproj.Up2Date

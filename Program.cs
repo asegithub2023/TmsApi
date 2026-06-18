@@ -1,8 +1,11 @@
+using Scalar.AspNetCore;
+using Microsoft.AspNetCore.OpenApi;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddAuthentication();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 
 builder.Host.UseDefaultServiceProvider(options =>
@@ -52,9 +55,20 @@ app.MapGet("/api/error", () =>
 {
     throw new TmsDatabaseException(
         "Simulated database failure for ProblemDetails testing");
-})
+});
 
-.RequireAuthorization();
+
+if (app.Environment.IsDevelopment())
+{
+    app.MapOpenApi();
+    app.MapScalarApiReference();
+}
+else
+{
+    app.UseExceptionHandler();
+}
+
+//.RequireAuthorization();
 
 app.MapControllers();
 
