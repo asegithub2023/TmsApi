@@ -57,7 +57,7 @@ public class EnrollmentsController(
     }
 }
 
-
+//request model
 public record CreateEnrollmentRequest(
     string StudentId,
     string CourseCode);
