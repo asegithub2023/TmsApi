@@ -24,6 +24,17 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
         builder.Property(s => s.IsActive)
             .HasDefaultValue(true);
 
+        builder.Property(s => s.IsDeleted)
+            .HasDefaultValue(false);
+
+        builder.Property<DateTime>("LastUpdated")
+            .HasColumnType("timestamp without time zone");
+
+        builder.Property(s => s.Version)
+            .IsRowVersion();
+
+        builder.HasQueryFilter(s => !s.IsDeleted);
+
         builder.HasMany(s => s.Enrollments)
             .WithOne(e => e.Student)
             .HasForeignKey(e => e.StudentId)

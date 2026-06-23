@@ -75,6 +75,68 @@ public class ReportingController : ControllerBase
             .ToListAsync();
         return Ok(list);
     }
+
+    [HttpGet("students/n-plus-one-demo")]
+    public async Task<IActionResult> GetStudentsNPlusOneDemo(CancellationToken cancellationToken)
+    {
+        var results = new List<object>();
+        var students = await _context.Students
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+        foreach (var student in students)
+        {
+            var count = await _context.Enrollments
+                .AsNoTracking()
+                .CountAsync(e => e.StudentId == student.Id, cancellationToken);
+
+            results.Add(new { student.Name, EnrollmentCount = count });
+        }
+
+        return Ok(results);
+    }
+
+    [HttpGet("students/n-plus-one-fixed")]
+    public async Task<IActionResult> GetStudentsNPlusOneFixed(CancellationToken cancellationToken)
+    {
+        var report = await _context.Students
+            .AsNoTracking()
+            .Select(s => new
+            {
+                s.Name,
+                EnrollmentCount = s.Enrollments.Count
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(report);
+    }
+
+    [HttpGet("students/soft-delete-admin")]
+    public async Task<IActionResult> GetStudentsIncludingDeleted(CancellationToken cancellationToken)
+    {
+        var students = await _context.Students
+            .IgnoreQueryFilters()
+            .Select(s => new
+            {
+                s.Name,
+                s.IsDeleted,
+                s.IsActive
+            })
+            .ToListAsync(cancellationToken);
+
+        return Ok(students);
+    }
+
+    [HttpPost("enrollments/archive-old")]
+    public async Task<IActionResult> ArchiveOldEnrollments(CancellationToken cancellationToken)
+    {
+        var cutoff = DateTime.UtcNow.AddMonths(-6);
+        var affected = await _context.Enrollments
+            .Where(e => e.EnrolledAt < cutoff)
+            .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsArchived, true), cancellationToken);
+
+        return Ok(new { UpdatedRows = affected });
+    }
 }
 
 
