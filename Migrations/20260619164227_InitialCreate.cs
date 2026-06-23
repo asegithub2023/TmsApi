@@ -81,6 +81,7 @@ namespace TmsApi.Migrations
                 table: "Enrollments",
                 column: "StudentId");
         }
+        
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)

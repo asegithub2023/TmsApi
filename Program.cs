@@ -37,13 +37,13 @@ builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
     
 var app = builder.Build();
 
+app.UseExceptionHandler();
 app.UseRouting();
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseExceptionHandler();
 app.UseStatusCodePages();
 
 app.MapGet("/api/assessments/results", () =>
