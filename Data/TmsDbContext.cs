@@ -17,6 +17,31 @@ public class TmsDbContext(
 
     public DbSet<Certificate> Certificates => Set<Certificate>();
     
+    public override int SaveChanges()
+    {
+        UpdateShadowProperties();
+        return base.SaveChanges();
+    }
+
+    public override Task<int> SaveChangesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        UpdateShadowProperties();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void UpdateShadowProperties()
+    {
+        var timestamp = DateTime.UtcNow;
+        foreach (var entry in ChangeTracker.Entries<Student>())
+        {
+            if (entry.State == EntityState.Added || entry.State == EntityState.Modified)
+            {
+                entry.Property("LastUpdated").CurrentValue = timestamp;
+            }
+        }
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
