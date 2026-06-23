@@ -16,4 +16,10 @@ public class TmsDbContext(
     public DbSet<Assessment> Assessments => Set<Assessment>();
 
     public DbSet<Certificate> Certificates => Set<Certificate>();
+    
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(TmsDbContext).Assembly);
+    }
 }
