@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using TmsApi.Services;
 
 public class EnrollmentWorker
 {
@@ -16,6 +17,6 @@ public class EnrollmentWorker
         var svc = scope.ServiceProvider
             .GetRequiredService<IEnrollmentService>();
 
-        var enrollments = svc.GetAllAsync().Result;
+        //TODO: Implement batch processing with new database-backed service
     }
 }
