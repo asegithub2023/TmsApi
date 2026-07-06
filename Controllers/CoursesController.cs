@@ -1,56 +1,34 @@
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TmsApi.Data;
-using TmsApi.Entities;
+using TmsApi.Dtos;
+using TmsApi.Services;
+
+namespace TmsApi.Controllers;
 
 [ApiController]
-[Route("courses")]
-public class CoursesController : ControllerBase
+[Route("api/courses")]
+public class CoursesController(ICourseService courseService) : ControllerBase
 {
-    private readonly TmsDbContext _context;
-
-    public CoursesController(TmsDbContext context)
+    [HttpGet("{id:int}", Name = nameof(GetCourseById))]
+    public async Task<IActionResult> GetCourseById(int id, CancellationToken ct)
     {
-        _context = context;
+        var course = await courseService.GetByIdAsync(id, ct);
+        return course is not null ? Ok(course) : NotFound();
     }
 
-    [HttpGet("{id}")]
-    public IActionResult GetCourseById(string id)
+    [HttpPost]
+    public async Task<IActionResult> CreateCourse(CreateCourseRequest request, CancellationToken ct)
     {
-        return Ok(new
+        if (await courseService.CodeExistsAsync(request.Code, ct))
         {
-            Id = id,
-            Title = "ASP.NET Core",
-            Credits = 3
-        });
-    }
-
-    [HttpGet("all")]
-    public IActionResult GetAllCourses()
-    {
-        return Ok(new[]
-        {
-            new { Id = "CS101", Title = "Programming Fundamentals" },
-            new { Id = "CS102", Title = "ASP.NET Core" }
-        });
-    }
-
-     //Top 5 courses by enrollment count using GroupBy
-    [HttpGet("top-5-by-enrollment")]
-    public async Task<IActionResult> GetTop5CoursesByEnrollment(CancellationToken ct = default)
-    {
-        var topCourses = await _context.Enrollments
-            .GroupBy(e => new { e.CourseId, e.Course.Title })  // Group by CourseId and Title
-            .Select(g => new
+            return Conflict(new ProblemDetails
             {
-                CourseId = g.Key.CourseId,
-                Title = g.Key.Title,
-                StudentCount = g.Count()
-            })
-            .OrderByDescending(x => x.StudentCount)  // Order by count descending
-            .Take(5)  // Top 5 only
-            .ToListAsync(ct);
+                Title = "Course code already exists",
+                Detail = $"A course with code '{request.Code}' is already registered.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
 
-        return Ok(topCourses);
+        var result = await courseService.CreateAsync(request, ct);
+        return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
     }
 }
