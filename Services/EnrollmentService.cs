@@ -14,6 +14,18 @@ public class EnrollmentService(TmsDbContext context, ILogger<EnrollmentService> 
             .Select(e => new EnrollmentResponseDto(e.Id, e.CourseId, e.StudentId, e.EnrolledAt))
             .FirstOrDefaultAsync(ct);
 
+    public async Task<IReadOnlyList<EnrollmentResponseDto>> GetByCourseAsync(int courseId, CancellationToken ct)
+    {
+        var enrollments = await context.Enrollments
+            .AsNoTracking()
+            .Where(e => e.CourseId == courseId)
+            .OrderBy(e => e.EnrolledAt)
+            .Select(e => new EnrollmentResponseDto(e.Id, e.CourseId, e.StudentId, e.EnrolledAt))
+            .ToListAsync(ct);
+
+        return enrollments;
+    }
+
     public async Task<EnrollmentResponseDto> CreateAsync(int courseId, EnrollStudentRequest request, CancellationToken ct)
     {
         var enrollment = new Enrollment
@@ -22,8 +34,10 @@ public class EnrollmentService(TmsDbContext context, ILogger<EnrollmentService> 
             StudentId = request.StudentId,
             EnrolledAt = DateTime.UtcNow
         };
+
         context.Enrollments.Add(enrollment);
         await context.SaveChangesAsync(ct);
+
         logger.LogInformation("Enrolled student {StudentId} in course {CourseId}", request.StudentId, courseId);
         return (await GetByIdAsync(courseId, enrollment.Id, ct))!;
     }
