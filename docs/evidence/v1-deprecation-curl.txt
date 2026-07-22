@@ -1,0 +1,20 @@
+=== GET /api/v1/courses?pageNumber=1&pageSize=2 ===
+HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+X-Correlation-Id: b04e93e8
+api-supported-versions: 1.0, 2.0
+Deprecation: true
+Sunset: Thu, 31 Dec 2026 00:00:00 GMT
+Link: <http://localhost:5196/api/v2/courses>; rel="successor-version"
+Content-Type: application/json; charset=utf-8
+
+{"items":[{"id":31,"code":"AAA-100","title":"A","maxCapacity":1,"enrollmentCount":0},{"id":29,"code":"BBB-409","title":"ABAB","maxCapacity":1,"enrollmentCount":1}],"totalCount":31,"page":1,"pageSize":2,"totalPages":16,"hasNext":true,"hasPrevious":false}
+
+=== GET /api/v2/courses?pageNumber=1&pageSize=2 ===
+HTTP/1.1 200 OK
+Transfer-Encoding: chunked
+X-Correlation-Id: 34419fd4
+api-supported-versions: 1.0, 2.0
+Content-Type: application/json; charset=utf-8
+
+{"data":[{"id":31,"title":"A","code":"AAA-100","maxCapacity":1,"enrollmentCount":0},{"id":29,"title":"ABAB","code":"BBB-409","maxCapacity":1,"enrollmentCount":1}],"meta":{"totalCount":31,"page":1,"pageSize":2,"totalPages":16,"hasNext":true,"hasPrevious":false},"links":{"self":"/api/v2/courses?page=1&pageSize=2","next":"/api/v2/courses?page=2&pageSize=2","prev":null,"enroll":"/api/v2/enrollments"}}

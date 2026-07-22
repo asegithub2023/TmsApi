@@ -5,6 +5,15 @@ using TmsApi.Infrastructure.Persistence;
 using TmsApi.Domain.Entities;
 using TmsApi.Application.Interfaces;
 using TmsApi.Api.Filters;
+using TmsApi.Api.Middleware;
+
+using Asp.Versioning;
+using MediatR;
+using FluentValidation;
+using TmsApi.Application.Behaviors;
+using TmsApi.Api.ExceptionHandlers;
+using TmsApi.Application.Enrollments.Commands;
+using TmsApi.Application.Enrollments.Queries;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +22,21 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+
+
+builder.Services.AddApiVersioning(options =>
+{
+    options.DefaultApiVersion = new ApiVersion(1, 0);
+    options.AssumeDefaultVersionWhenUnspecified = true;
+    options.ReportApiVersions = true;
+    options.ApiVersionReader = new UrlSegmentApiVersionReader();
+})
+.AddApiExplorer(options =>
+{
+    options.GroupNameFormat = "'v'VVV";
+    options.SubstituteApiVersionInUrl = true;
+});
+
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
@@ -41,9 +65,21 @@ builder.Services.AddControllers(options =>
 });
 
 
+builder.Services.AddMediatR(cfg =>
+    cfg.RegisterServicesFromAssembly(typeof(EnrollStudentHandler).Assembly));
+builder.Services.AddValidatorsFromAssembly(typeof(EnrollStudentValidator).Assembly);
+
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(LoggingBehavior<,>));
+builder.Services.AddTransient(typeof(IPipelineBehavior<,>), typeof(ValidationBehavior<,>));
+
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails(); 
+
 builder.Services.AddSingleton<EnrollmentWorker>();
 builder.Services.AddScoped<ICourseService, CourseService>();
-builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();    
+builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
+builder.Services.AddScoped<ICourseRepository, TmsApi.Infrastructure.Persistence.CourseRepository>();
+builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>(); 
 var app = builder.Build();
 
 app.UseExceptionHandler();
@@ -77,7 +113,6 @@ app.MapGet("/api/error", () =>
         "Simulated database failure for ProblemDetails testing");
 });
 
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -89,7 +124,7 @@ else
 }
 
 //.RequireAuthorization();
-
+app.UseMiddleware<V1DeprecationMiddleware>(); 
 app.MapControllers();
 
 // Seed test data at startup
