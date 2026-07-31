@@ -1,17 +1,19 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using TmsApi.Infrastructure.Persistence;
+using TmsApi.Application.DTOs;
+using TmsApi.Application.Interfaces;
+using TmsApi.Application.Utilities;
 
 namespace TmsApi.Api.Controllers.V2;
 
 [ApiController]
 [Route("api/v{version:apiVersion}/courses")]
 [ApiVersion("2.0")]
-public class CoursesController(TmsDbContext context) : ControllerBase
+public class CoursesController(ICachedCourseService cachedCourses) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetCourses(
+        [FromQuery] string? fields,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         CancellationToken ct = default)
@@ -19,23 +21,17 @@ public class CoursesController(TmsDbContext context) : ControllerBase
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 50);
 
-        var baseQuery = context.Courses.AsNoTracking();
+        var courses = await cachedCourses.GetAllCoursesAsync(ct);
+        var totalCount = courses.Count;
 
-        var totalCount = await baseQuery.CountAsync(ct);
-
-        var rows = await baseQuery
+        var rows = courses
             .OrderBy(c => c.Title)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(c => new
-            {
-                c.Id,
-                c.Title,
-                c.Code,
-                c.MaxCapacity,
-                EnrollmentCount = c.Enrollments.Count
-            })
-            .ToListAsync(ct);
+            .Select(c => new CourseDto(c.Id, c.Code, c.Title, c.MaxCapacity, c.EnrollmentCount))
+            .ToList();
+
+        var shaped = rows.ShapeData(fields, CourseDtoFields.Allowed).ToList();
 
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
         var hasNext = page < totalPages;
@@ -43,7 +39,7 @@ public class CoursesController(TmsDbContext context) : ControllerBase
 
         return Ok(new
         {
-            data = rows,
+            data = shaped,
             meta = new
             {
                 totalCount,
@@ -53,16 +49,32 @@ public class CoursesController(TmsDbContext context) : ControllerBase
                 hasNext,
                 hasPrevious
             },
-            links = new
+            links = new[]
             {
-                self = $"/api/v2/courses?page={page}&pageSize={pageSize}",
-                next = hasNext
-                    ? $"/api/v2/courses?page={page + 1}&pageSize={pageSize}"
-                    : (string?)null,
-                prev = hasPrevious
-                    ? $"/api/v2/courses?page={page - 1}&pageSize={pageSize}"
-                    : (string?)null,
-                enroll = "/api/v2/enrollments"
+                new LinkDto(Url.Action(nameof(GetCourses), new { page, pageSize, fields })!, "self", "GET"),
+                hasNext ? new LinkDto(Url.Action(nameof(GetCourses), new { page = page + 1, pageSize, fields })!, "next", "GET") : null,
+                hasPrevious ? new LinkDto(Url.Action(nameof(GetCourses), new { page = page - 1, pageSize, fields })!, "prev", "GET") : null
+            }.Where(l => l is not null).Select(l => l!).ToList()
+        });
+    }
+
+    [HttpGet("{code}")]
+    public async Task<IActionResult> GetCourse(string code, CancellationToken ct)
+    {
+        var course = await cachedCourses.GetCourseAsync(code, ct);
+
+        if (course is null)
+            return NotFound();
+
+        var dto = new CourseDto(course.Id, course.Code, course.Title, course.MaxCapacity, course.EnrollmentCount);
+
+        return Ok(new
+        {
+            data = dto,
+            links = new[]
+            {
+                new LinkDto(Url.Action(nameof(GetCourse), new { code })!, "self", "GET"),
+                new LinkDto(Url.Action("Enroll", "Enrollments", new { courseCode = code })!, "enroll", "POST")
             }
         });
     }

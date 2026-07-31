@@ -15,6 +15,34 @@ using TmsApi.Api.ExceptionHandlers;
 using TmsApi.Application.Enrollments.Commands;
 using TmsApi.Application.Enrollments.Queries;
 
+using Microsoft.Extensions.Caching.Hybrid;
+using TmsApi.Infrastructure.Services;
+
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using TmsApi.Api.RateLimiting;
+
+using System.Threading.Channels;
+using TmsApi.Api.Hubs;
+using TmsApi.Application.Transcripts;
+using TmsApi.Infrastructure.Transcripts;
+using TmsApi.Infrastructure.Workers;
+
+using Polly;
+using Polly.CircuitBreaker;
+using Polly.Retry;
+using Polly.Timeout;
+
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
+using HealthChecks.NpgSql;
+using OpenTelemetry.Instrumentation.Runtime;
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using TmsApi.Infrastructure.ExternalServices;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddAuthentication();
@@ -22,6 +50,92 @@ builder.Services.AddAuthorization();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+
+builder.Logging.ClearProviders();
+builder.Logging.AddJsonConsole(options =>
+{
+    options.IncludeScopes = true;
+    options.JsonWriterOptions = new() { Indented = false };
+});
+
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+    {
+        var (partitionKey, tier) = ApiKeyResolver.Resolve(httpContext);
+
+        return tier switch
+        {
+            ApiKeyTier.Paid => RateLimitPartition.GetTokenBucketLimiter(
+                partitionKey: $"paid:{partitionKey}",
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 200,
+                    TokensPerPeriod = 100,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                }),
+            ApiKeyTier.Free => RateLimitPartition.GetTokenBucketLimiter(
+                partitionKey: $"free:{partitionKey}",
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 30,
+                    TokensPerPeriod = 10,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                }),
+            _ => RateLimitPartition.GetTokenBucketLimiter(
+                partitionKey: $"anon:{partitionKey}",
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 10,
+                    TokensPerPeriod = 5,
+                    ReplenishmentPeriod = TimeSpan.FromSeconds(10),
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                })
+        };
+    });
+
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.OnRejected = async (context, ct) =>
+    {
+        var retryAfter = "10";
+        if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var ts))
+            retryAfter = ((int)ts.TotalSeconds).ToString();
+
+        context.HttpContext.Response.Headers.RetryAfter = retryAfter;
+        context.HttpContext.Response.ContentType = "application/problem+json";
+
+        await context.HttpContext.Response.WriteAsJsonAsync(new ProblemDetails
+        {
+            Title = "Rate limit exceeded",
+            Detail = $"Too many requests. Retry after {retryAfter} seconds.",
+            Status = StatusCodes.Status429TooManyRequests,
+            Type = "https://tms.local/errors/rate_limit_exceeded"
+        }, ct);
+    };
+
+    options.AddConcurrencyLimiter("transcripts", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.QueueLimit = 20;
+        opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+    });
+});
+
+builder.Services.AddHybridCache(options =>
+{
+    options.DefaultEntryOptions = new HybridCacheEntryOptions
+    {
+        Expiration = TimeSpan.FromMinutes(10),
+        LocalCacheExpiration = TimeSpan.FromMinutes(2)
+    };
+});
 
 
 builder.Services.AddApiVersioning(options =>
@@ -37,6 +151,12 @@ builder.Services.AddApiVersioning(options =>
     options.SubstituteApiVersionInUrl = true;
 });
 
+builder.Services.AddHealthChecks()
+    .AddCheck("self", () => HealthCheckResult.Healthy("alive"), tags: ["live"])
+    .AddNpgSql(
+        connectionString: builder.Configuration.GetConnectionString("TmsDatabase")!,
+        name: "postgres",
+        tags: ["ready"]);
 
 builder.Host.UseDefaultServiceProvider(options =>
 {
@@ -65,6 +185,67 @@ builder.Services.AddControllers(options =>
 });
 
 
+builder.Services.AddSingleton(Channel.CreateBounded<TranscriptRequest>(
+    new BoundedChannelOptions(100)
+    {
+        FullMode = BoundedChannelFullMode.Wait
+    }));
+
+builder.Services.AddResiliencePipeline("certificate-api", pipeline =>
+{
+    pipeline
+        .AddTimeout(TimeSpan.FromSeconds(5))
+        .AddCircuitBreaker(new CircuitBreakerStrategyOptions
+        {
+            FailureRatio = 0.5,
+            MinimumThroughput = 10,
+            SamplingDuration = TimeSpan.FromSeconds(30),
+            BreakDuration = TimeSpan.FromSeconds(15),
+            ShouldHandle = new PredicateBuilder()
+                .Handle<HttpRequestException>()
+                .Handle<TimeoutRejectedException>(),
+            OnOpened = args =>
+            {
+                Console.WriteLine("Circuit OPENED - stopping requests to certificate service");
+                return ValueTask.CompletedTask;
+            },
+            OnClosed = args =>
+            {
+                Console.WriteLine("Circuit CLOSED - certificate service recovered");
+                return ValueTask.CompletedTask;
+            }
+        })
+        .AddRetry(new RetryStrategyOptions
+        {
+            MaxRetryAttempts = 3,
+            Delay = TimeSpan.FromMilliseconds(500),
+            BackoffType = DelayBackoffType.Exponential,
+            UseJitter = true,
+            ShouldHandle = new PredicateBuilder()
+                .Handle<HttpRequestException>()
+                .Handle<TimeoutRejectedException>(),
+            OnRetry = args =>
+            {
+                Console.WriteLine(
+                    $"Retry #{args.AttemptNumber} after {args.RetryDelay.TotalMilliseconds:F0}ms ({args.Outcome.Exception?.GetType().Name})");
+                return ValueTask.CompletedTask;
+            }
+        });
+});
+
+
+
+builder.Services.AddHttpClient<ICertificateService, CertificateService>((sp, client) =>
+{
+    var baseUrl = sp.GetRequiredService<IConfiguration>().GetValue<string>("TmsApi:PublicBaseUrl")
+        ?? "https://localhost:5196";
+
+    client.BaseAddress = new Uri(baseUrl);
+});
+
+
+
+
 builder.Services.AddMediatR(cfg =>
     cfg.RegisterServicesFromAssembly(typeof(EnrollStudentHandler).Assembly));
 builder.Services.AddValidatorsFromAssembly(typeof(EnrollStudentValidator).Assembly);
@@ -79,17 +260,79 @@ builder.Services.AddSingleton<EnrollmentWorker>();
 builder.Services.AddScoped<ICourseService, CourseService>();
 builder.Services.AddScoped<IEnrollmentService, EnrollmentService>();
 builder.Services.AddScoped<ICourseRepository, TmsApi.Infrastructure.Persistence.CourseRepository>();
-builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>(); 
+builder.Services.AddScoped<IEnrollmentRepository, EnrollmentRepository>();
+builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
+
+const string ServiceName = "tms-api";
+
+builder.Services.AddOpenTelemetry()
+    .ConfigureResource(r => r.AddService(serviceName: ServiceName, serviceVersion: "1.0.0"))
+    .WithTracing(t => t
+        .AddSource(ServiceName)
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddOtlpExporter())
+    .WithMetrics(m => m
+        .AddMeter(ServiceName)
+        .AddAspNetCoreInstrumentation()
+        .AddHttpClientInstrumentation()
+        .AddRuntimeInstrumentation()
+        .AddOtlpExporter());
+
+builder.Services.AddSingleton<ITranscriptStatusStore, InMemoryTranscriptStatusStore>();
+builder.Services.AddSignalR();
+builder.Services.AddHostedService<TranscriptWorker>();
+
 var app = builder.Build();
+
+var attempts = 0;
+
+app.MapPost("/fake/certificates", async () =>
+{
+    var n = Interlocked.Increment(ref attempts);
+
+    if (n % 7 == 0)
+    {
+        await Task.Delay(TimeSpan.FromSeconds(20));
+        return Results.Ok(new { Status = "issued", Attempt = n });
+    }
+
+    if (n % 3 != 0)
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+
+    if (n % 11 == 0)
+    {
+        return Results.BadRequest(new { error = "validation_failed" });
+    }
+
+    return Results.Ok(new { Status = "issued", Attempt = n });
+}).WithTags("lab-fixtures");
 
 app.UseExceptionHandler();
 app.UseRouting();
+app.UseRateLimiter();
 
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStatusCodePages();
+
+app.MapHealthChecks("/health/live", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("live")
+}).DisableRateLimiting();
+
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready")
+}).DisableRateLimiting();
+
+
+
+app.MapHub<TmsHub>("/hubs/tms");
 
 app.MapGet("/api/assessments/results", () =>
 {
