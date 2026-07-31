@@ -19,6 +19,11 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
                 (IDictionary<string, string[]>?)ve.Errors
                     .GroupBy(e => e.PropertyName)
                     .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())),
+            Application.Common.BadRequestException bre => (
+                StatusCodes.Status400BadRequest,
+                "Invalid request",
+                bre.Message,
+                null),
             _ => (
                 StatusCodes.Status500InternalServerError,
                 "Server error",

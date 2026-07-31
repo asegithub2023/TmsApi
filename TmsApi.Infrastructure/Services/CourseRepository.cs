@@ -19,4 +19,11 @@ public class CourseRepository : ICourseRepository
             .Include(c => c.Enrollments)
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Code == code, ct);
+
+    public Task<List<Course>> GetAllAsync(CancellationToken ct) =>
+        context.Courses
+            .Include(c => c.Enrollments)
+            .AsNoTracking()
+            .OrderBy(c => c.Title)
+            .ToListAsync(ct);
 }
