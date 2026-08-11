@@ -59,6 +59,26 @@ builder.Logging.AddJsonConsole(options =>
 });
 
 
+var allowedOrigins = builder.Configuration
+.GetSection("AllowedOrigins").Get<string[]>()
+?? ["http://localhost:4200"];
+
+
+builder.Services.AddCors(options =>
+{
+options.AddPolicy("TmsClient", policy =>
+{
+policy.WithOrigins(allowedOrigins)
+.AllowAnyHeader()
+.AllowAnyMethod()
+.AllowCredentials()
+.SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+});
+});
+
+
+
+
 builder.Services.AddRateLimiter(options =>
 {
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
@@ -312,6 +332,7 @@ app.MapPost("/fake/certificates", async () =>
 
 app.UseExceptionHandler();
 app.UseRouting();
+app.UseCors("TmsClient");
 app.UseRateLimiter();
 
 app.UseMiddleware<RequestLoggingMiddleware>();

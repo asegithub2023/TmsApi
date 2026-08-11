@@ -4,6 +4,7 @@ using TmsApi.Application.Interfaces;
 using TmsApi.Application.DTOs;
 using TmsApi.Domain.Entities;
 using Microsoft.Extensions.Logging;
+
 public class EnrollmentService(TmsDbContext context, ILogger<EnrollmentService> logger) : IEnrollmentService
 {
     public Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct) =>
