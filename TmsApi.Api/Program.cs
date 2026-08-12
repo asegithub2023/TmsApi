@@ -42,6 +42,8 @@ using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using TmsApi.Infrastructure.ExternalServices;
+using Microsoft.AspNetCore.Antiforgery;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -77,6 +79,10 @@ policy.WithOrigins(allowedOrigins)
 });
 
 
+builder.Services.AddAntiforgery(options =>
+{
+    options.HeaderName = "X-XSRF-TOKEN";
+});
 
 
 builder.Services.AddRateLimiter(options =>
@@ -340,6 +346,32 @@ app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseStatusCodePages();
+
+
+app.Use(async (context, next) =>
+{
+    if (context.User.Identity?.IsAuthenticated == true ||
+        context.Request.Cookies.ContainsKey("tms_auth"))
+    {
+        var antiforgery = context.RequestServices
+            .GetRequiredService<IAntiforgery>();
+
+        var tokens = antiforgery.GetAndStoreTokens(context);
+
+        context.Response.Cookies.Append(
+            "XSRF-TOKEN",
+            tokens.RequestToken!,
+            new CookieOptions
+            {
+                HttpOnly = false,
+                Secure = !builder.Environment.IsDevelopment(),
+                SameSite = SameSiteMode.Strict
+            });
+    }
+
+    await next(context);
+});
+
 
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {
