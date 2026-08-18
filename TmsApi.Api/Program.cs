@@ -43,7 +43,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using TmsApi.Infrastructure.ExternalServices;
 using Microsoft.AspNetCore.Antiforgery;
-
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -64,6 +64,22 @@ builder.Logging.AddJsonConsole(options =>
 var allowedOrigins = builder.Configuration
 .GetSection("AllowedOrigins").Get<string[]>()
 ?? ["http://localhost:4200"];
+
+
+builder.Services.AddIdentityCore<TmsUser>(options =>
+{
+// Enterprise Password Policy
+options.Password.RequiredLength = 12;
+options.Password.RequireUppercase = true;
+options.Password.RequireDigit = true;
+options.Password.RequireNonAlphanumeric = true;
+// Brute-Force Lockout Protection
+options.Lockout.MaxFailedAccessAttempts = 5;
+options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+options.Lockout.AllowedForNewUsers = true;
+})
+.AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<TmsDbContext>();
 
 
 builder.Services.AddCors(options =>
@@ -385,7 +401,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 
 
 
-app.MapHub<TmsHub>("/hubs/tms");
+app.MapHub<TmsHub>("/hubs/tms")
+    .RequireCors("TmsClient");
 
 app.MapGet("/api/assessments/results", () =>
 {

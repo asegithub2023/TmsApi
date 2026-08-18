@@ -96,4 +96,37 @@ public class CoursesController(
         var result = await courseService.CreateAsync(request, ct);
         return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
     }
+
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [EndpointSummary("Delete a course")]
+    [EndpointDescription("Deletes a course when it has no active enrollments. Returns 409 if active student enrollments still exist.")]
+    public async Task<IActionResult> DeleteCourse(int id, CancellationToken ct)
+    {
+        var course = await courseService.GetByIdAsync(id, ct);
+        if (course is null)
+        {
+            return NotFound(new ProblemDetails
+            {
+                Title = "Course not found",
+                Detail = $"Course with id '{id}' was not found.",
+                Status = StatusCodes.Status404NotFound
+            });
+        }
+
+        var deleted = await courseService.DeleteAsync(id, ct);
+        if (!deleted)
+        {
+            return Conflict(new ProblemDetails
+            {
+                Title = "Course deletion blocked",
+                Detail = "Cannot delete course: active student enrollments exist.",
+                Status = StatusCodes.Status409Conflict
+            });
+        }
+
+        return NoContent();
+    }
 }

@@ -43,6 +43,28 @@ public class CourseService : ICourseService
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>
         context.Courses.AsNoTracking().AnyAsync(c => c.Code == code, ct);
 
+    public async Task<bool> DeleteAsync(int id, CancellationToken ct)
+    {
+        var course = await context.Courses
+            .Include(c => c.Enrollments)
+            .FirstOrDefaultAsync(c => c.Id == id, ct);
+
+        if (course is null)
+        {
+            return false;
+        }
+
+        var hasActiveEnrollments = course.Enrollments.Any(e => !e.IsArchived);
+        if (hasActiveEnrollments)
+        {
+            return false;
+        }
+
+        context.Courses.Remove(course);
+        await context.SaveChangesAsync(ct);
+        return true;
+    }
+
     public async Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(PagedRequest request, CancellationToken ct)
     {
         IQueryable<Course> query = context.Courses.AsNoTracking();
