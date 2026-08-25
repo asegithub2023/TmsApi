@@ -40,6 +40,24 @@ public class CourseService : ICourseService
         return (await GetByIdAsync(course.Id, ct))!;
     }
 
+    public Task<Course?> GetEntityByIdAsync(int id, CancellationToken ct) =>
+        context.Courses.FirstOrDefaultAsync(c => c.Id == id, ct);
+
+    public async Task UpdateAsync(int id, UpdateCourseDto dto, CancellationToken ct)
+    {
+        var course = await context.Courses.FirstOrDefaultAsync(c => c.Id == id, ct);
+        if (course is null)
+        {
+            return;
+        }
+
+        course.Title = dto.Title;
+        await context.SaveChangesAsync(ct);
+
+        logger.LogInformation("Updated course {CourseId} ({Code})", course.Id, course.Code);
+    }
+
+
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>
         context.Courses.AsNoTracking().AnyAsync(c => c.Code == code, ct);
 

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -7,6 +8,7 @@ using TmsApi.Infrastructure.Persistence;
 using TmsApi.Application.Interfaces;
 namespace TmsApi.Api.Controllers;
 
+[Authorize(Roles = "Instructor,Admin")]
 [ApiController]
 [Route("api/courses")]
 [Tags("Courses")]
@@ -14,9 +16,11 @@ namespace TmsApi.Api.Controllers;
 [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
 public class CoursesController(
     ICourseService courseService,
+    IAuthorizationService authorizationService,
     LinkGenerator linkGenerator) : ControllerBase
 {
     [HttpGet("{id:int}", Name = nameof(GetCourseById))]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(CourseDetailDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     [EndpointSummary("Get a course by ID")]
@@ -66,6 +70,7 @@ public class CoursesController(
     }
 
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(PagedResponse<CourseResponseDto>), StatusCodes.Status200OK)]
     [EndpointSummary("List courses with pagination")]
     [EndpointDescription("Returns a paginated, optionally filtered list of TMS courses. PageSize is capped at 50.")]
@@ -95,6 +100,30 @@ public class CoursesController(
 
         var result = await courseService.CreateAsync(request, ct);
         return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
+    }
+
+    [HttpPut("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [EndpointSummary("Update a course")]
+    [EndpointDescription("Updates a course. Only the assigned lead instructor or an Admin may edit. Returns 403 if the caller does not own the course.")]
+    public async Task<IActionResult> UpdateCourse(int id, [FromBody] UpdateCourseDto dto, CancellationToken ct)
+    {
+        var course = await courseService.GetEntityByIdAsync(id, ct);
+        if (course is null)
+        {
+            return NotFound();
+        }
+
+        var authResult = await authorizationService.AuthorizeAsync(User, course, "CanEditCourse");
+        if (!authResult.Succeeded)
+        {
+            return Forbid(); // 403 Forbidden when caller doesn't own the resource
+        }
+
+        await courseService.UpdateAsync(id, dto, ct);
+        return NoContent();
     }
 
     [HttpDelete("{id:int}")]

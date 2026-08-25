@@ -47,6 +47,8 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using TmsApi.Api.Authorization;
+using Microsoft.AspNetCore.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -172,6 +174,11 @@ builder.Services.AddRateLimiter(options =>
         opt.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
     });
 });
+
+builder.Services.AddAuthorizationBuilder()
+.AddPolicy("CanEditCourse", policy =>
+policy.Requirements.Add(new CourseInstructorRequirement()));
+builder.Services.AddSingleton<IAuthorizationHandler, CourseInstructorHandler>();
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddAuthentication(options =>
@@ -333,6 +340,17 @@ builder.Services.AddScoped<ICachedCourseService, CachedCourseService>();
 
 const string ServiceName = "tms-api";
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("AuthLimiter", opt =>
+    {
+        opt.PermitLimit = 5;
+        opt.Window = TimeSpan.FromMinutes(1);
+        opt.QueueLimit = 0;
+    });
+});
+
+
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService(serviceName: ServiceName, serviceVersion: "1.0.0"))
     .WithTracing(t => t
@@ -389,7 +407,21 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseStatusCodePages();
 
+app.UseRateLimiter();
 
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+
+    context.Response.Headers.Append(
+        "Content-Security-Policy",
+        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+    );
+
+    await next();
+});
 app.Use(async (context, next) =>
 {
     if (context.User.Identity?.IsAuthenticated == true ||
