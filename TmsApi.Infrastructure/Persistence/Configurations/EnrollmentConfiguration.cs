@@ -30,5 +30,10 @@ public class EnrollmentConfiguration : IEntityTypeConfiguration<Enrollment>
 
         builder.Property(e => e.EnrolledAt)
             .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+        builder.Property(e => e.Status)
+            .HasConversion<string>()
+            .HasMaxLength(20)
+            .HasDefaultValue(EnrollmentStatus.Pending);
     }
 }

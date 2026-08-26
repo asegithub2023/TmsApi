@@ -13,6 +13,8 @@ public class Enrollment
 
     public bool IsArchived { get; set; }
 
+    public EnrollmentStatus Status { get; set; } = EnrollmentStatus.Pending;
+
     public DateTime EnrolledAt { get; set; }
         = DateTime.UtcNow;
 

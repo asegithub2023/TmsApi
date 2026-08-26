@@ -32,4 +32,21 @@ public class EnrollmentRepository : IEnrollmentRepository
             .Include(e => e.Course)
             .Where(e => e.StudentId == studentId)
             .ToListAsync(ct);
+
+    public Task<List<Enrollment>> GetAllAsync(CancellationToken ct) =>
+        context.Enrollments
+            .AsNoTracking()
+            .Include(e => e.Student)
+            .Include(e => e.Course)
+            .OrderByDescending(e => e.EnrolledAt)
+            .ToListAsync(ct);
+
+    public Task<Enrollment?> GetByIdAsync(int id, CancellationToken ct) =>
+        context.Enrollments.FirstOrDefaultAsync(e => e.Id == id, ct);
+
+    public async Task UpdateAsync(Enrollment enrollment, CancellationToken ct)
+    {
+        context.Enrollments.Update(enrollment);
+        await context.SaveChangesAsync(ct);
+    }
 }

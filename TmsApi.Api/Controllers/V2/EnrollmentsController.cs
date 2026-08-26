@@ -16,6 +16,13 @@ public class EnrollmentsController(
     IMediator mediator,
     IHubContext<TmsHub, ITmsHubClient> hubContext) : ControllerBase
 {
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken ct)
+    {
+        var list = await mediator.Send(new GetAllEnrollmentsQuery(), ct);
+        return Ok(list);
+    }
+
     [HttpPost]
     public async Task<IActionResult> Enroll(
         EnrollStudentCommand command, CancellationToken ct)
@@ -44,10 +51,29 @@ public class EnrollmentsController(
             });
     }
 
-    [HttpPost("{id}/approve")]
-    public async Task<IActionResult> Approve(string id, CancellationToken ct)
+    [HttpPost("{id:int}/approve")]
+    public async Task<IActionResult> Approve(int id, CancellationToken ct)
     {
-        await hubContext.Clients.All.ReceiveEnrollmentStatusUpdated(id, "Approved");
+        var approved = await mediator.Send(new ApproveEnrollmentCommand(id), ct);
+        if (!approved)
+        {
+            return NotFound();
+        }
+
+        await hubContext.Clients.All.ReceiveEnrollmentStatusUpdated(id.ToString(), "Approved");
+        return NoContent();
+    }
+
+    [HttpPost("{id:int}/reject")]
+    public async Task<IActionResult> Reject(int id, CancellationToken ct)
+    {
+        var rejected = await mediator.Send(new RejectEnrollmentCommand(id), ct);
+        if (!rejected)
+        {
+            return NotFound();
+        }
+
+        await hubContext.Clients.All.ReceiveEnrollmentStatusUpdated(id.ToString(), "Rejected");
         return NoContent();
     }
 
