@@ -18,6 +18,13 @@ public class StudentConfiguration : IEntityTypeConfiguration<Student>
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.Property(s => s.Email)
+            .HasMaxLength(256);
+
+        builder.HasIndex(s => s.Email)
+            .IsUnique()
+            .HasFilter("\"Email\" IS NOT NULL");
+
         builder.Property(s => s.GPA)
             .HasPrecision(5, 2);
 

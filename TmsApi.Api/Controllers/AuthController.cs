@@ -70,6 +70,22 @@ public class AuthController : ControllerBase
 
         await _userManager.AddToRoleAsync(user, request.Role);
 
+        // A Student account also needs a Student record so enrollments,
+        // grades, and transcripts can be attributed to a real person
+        // instead of a hardcoded demo student.
+        if (string.Equals(request.Role, "Student", StringComparison.OrdinalIgnoreCase))
+        {
+            var student = new Student
+            {
+                RegistrationNumber = $"STU-{DateTime.UtcNow:yyyyMMddHHmmssfff}",
+                Name = $"{request.FirstName} {request.LastName}",
+                Email = request.Email
+            };
+
+            _context.Students.Add(student);
+            await _context.SaveChangesAsync();
+        }
+
         return Ok(new { message = "Registration successful." });
     }
 
@@ -106,7 +122,12 @@ public class AuthController : ControllerBase
         await _userManager.ResetAccessFailedCountAsync(user);
 
         var roles = await _userManager.GetRolesAsync(user);
-        var accessToken = _tokenService.GenerateJwt(user, roles);
+
+        var student = await _context.Students
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Email == user.Email);
+
+        var accessToken = _tokenService.GenerateJwt(user, roles, student?.Id);
 
         // Issue initial Refresh Token
         var refreshToken = new RefreshToken
@@ -180,7 +201,12 @@ public class AuthController : ControllerBase
 
         var user = await _userManager.FindByIdAsync(storedToken.UserId);
         var roles = await _userManager.GetRolesAsync(user!);
-        var newAccessToken = _tokenService.GenerateJwt(user!, roles);
+
+        var student = await _context.Students
+            .AsNoTracking()
+            .FirstOrDefaultAsync(s => s.Email == user!.Email);
+
+        var newAccessToken = _tokenService.GenerateJwt(user!, roles, student?.Id);
 
         return Ok(new
         {

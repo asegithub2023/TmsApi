@@ -13,7 +13,7 @@ public TokenService(IConfiguration config)
 {
 _config = config;
 }
-public string GenerateJwt(TmsUser user, IList<string> roles)
+public string GenerateJwt(TmsUser user, IList<string> roles, int? studentId = null)
 {
 var claims = new List<Claim>
 {
@@ -21,6 +21,10 @@ new Claim(ClaimTypes.NameIdentifier, user.Id),
 new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
 new Claim("FirstName", user.FirstName)
 };
+if (studentId.HasValue)
+{
+claims.Add(new Claim("studentId", studentId.Value.ToString()));
+}
 foreach (var role in roles)
 {
 claims.Add(new Claim(ClaimTypes.Role, role));
