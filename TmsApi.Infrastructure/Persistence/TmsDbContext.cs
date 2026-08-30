@@ -35,7 +35,13 @@ base(options) { }
 
     private void UpdateShadowProperties()
     {
-        var timestamp = DateTime.UtcNow;
+        // "LastUpdated" is mapped to a Postgres "timestamp without time zone"
+        // column. Npgsql (v6+) requires DateTimeKind.Unspecified for that
+        // column type - passing a Kind=Utc value throws "Cannot write
+        // DateTime with Kind=UTC to PostgreSQL type 'timestamp without time
+        // zone'". We still want the UTC instant, just with the Kind flag
+        // stripped so Npgsql accepts it.
+        var timestamp = DateTime.SpecifyKind(DateTime.UtcNow, DateTimeKind.Unspecified);
         foreach (var entry in ChangeTracker.Entries<Student>())
         {
             if (entry.State == EntityState.Added || entry.State == EntityState.Modified)

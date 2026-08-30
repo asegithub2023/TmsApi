@@ -38,7 +38,10 @@ public static class DataSeeder
 
 	public static async Task SeedAsync(TmsDbContext context, CancellationToken ct = default)
 	{
-		await context.Database.MigrateAsync(ct);
+		if (context.Database.IsRelational())
+{
+    await context.Database.MigrateAsync(ct);
+}
 
 		if (await context.Courses.AnyAsync(ct))
 		{

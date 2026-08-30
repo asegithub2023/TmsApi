@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TmsApi.Infrastructure", "Tm
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TmsApi.Api", "TmsApi.Api\TmsApi.Api.csproj", "{84CC1974-1AB0-413A-9AE6-F63E25CB92F4}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TmsApi.Tests", "TmsApi.Tests\TmsApi.Tests.csproj", "{94865049-BE00-47E6-A211-A1249A8F544A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -69,6 +71,18 @@ Global
 		{84CC1974-1AB0-413A-9AE6-F63E25CB92F4}.Release|x64.Build.0 = Release|Any CPU
 		{84CC1974-1AB0-413A-9AE6-F63E25CB92F4}.Release|x86.ActiveCfg = Release|Any CPU
 		{84CC1974-1AB0-413A-9AE6-F63E25CB92F4}.Release|x86.Build.0 = Release|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Debug|x64.Build.0 = Debug|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Debug|x86.Build.0 = Debug|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Release|x64.ActiveCfg = Release|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Release|x64.Build.0 = Release|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Release|x86.ActiveCfg = Release|Any CPU
+		{94865049-BE00-47E6-A211-A1249A8F544A}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

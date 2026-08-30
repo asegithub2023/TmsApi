@@ -11,25 +11,33 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
         HttpContext httpContext, Exception exception, CancellationToken ct)
     {
         var (status, title, detail, errors) = exception switch
-        {
-            ValidationException ve => (
-                StatusCodes.Status400BadRequest,
-                "Validation failed",
-                "One or more fields are invalid. See errors for details.",
-                (IDictionary<string, string[]>?)ve.Errors
-                    .GroupBy(e => e.PropertyName)
-                    .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())),
-            Application.Common.BadRequestException bre => (
-                StatusCodes.Status400BadRequest,
-                "Invalid request",
-                bre.Message,
-                null),
-            _ => (
-                StatusCodes.Status500InternalServerError,
-                "Server error",
-                $"An unexpected error occurred. Trace ID: {httpContext.TraceIdentifier}",
-                null)
-        };
+{
+    ValidationException ve => (
+        StatusCodes.Status400BadRequest,
+        "Validation failed",
+        "One or more fields are invalid. See errors for details.",
+        (IDictionary<string, string[]>?)ve.Errors
+            .GroupBy(e => e.PropertyName)
+            .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())),
+
+    Application.Common.BadRequestException bre => (
+        StatusCodes.Status400BadRequest,
+        "Invalid request",
+        bre.Message,
+        null),
+
+    Application.Common.NotFoundException nfe => (
+        StatusCodes.Status404NotFound,
+        "Resource not found",
+        nfe.Message,
+        null),
+
+    _ => (
+        StatusCodes.Status500InternalServerError,
+        "Server error",
+        $"An unexpected error occurred. Trace ID: {httpContext.TraceIdentifier}",
+        null)
+};
 
         if (status == StatusCodes.Status500InternalServerError)
             logger.LogError(exception, "Unhandled exception (trace={TraceId})", httpContext.TraceIdentifier);

@@ -502,7 +502,10 @@ app.MapControllers();
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
+   if (context.Database.IsRelational())
+{
     context.Database.Migrate(); // Applies any pending migrations; keeps migration history intact
+} 
     if (!context.Students.Any())
     {
         var students = new List<Student>
@@ -539,8 +542,15 @@ if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var context = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
+
+    if (context.Database.IsRelational())
+    {
+        await context.Database.MigrateAsync();
+    }
+
     await DataSeeder.SeedAsync(context);
 }
 
 app.Run();
 
+public partial class Program { }
