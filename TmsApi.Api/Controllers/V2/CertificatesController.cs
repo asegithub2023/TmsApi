@@ -1,4 +1,5 @@
 using Asp.Versioning;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Application.Interfaces;
 
@@ -7,6 +8,7 @@ namespace TmsApi.Api.Controllers.V2;
 [ApiController]
 [Route("api/v{version:apiVersion}/certificates")]
 [ApiVersion("2.0")]
+[Authorize(Roles = "Student,Instructor,Admin")]
 public sealed class CertificatesController(ICertificateService certificates) : ControllerBase
 {
     public sealed record IssueRequest(int StudentId, string CourseCode);

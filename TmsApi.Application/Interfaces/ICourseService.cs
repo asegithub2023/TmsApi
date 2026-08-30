@@ -11,6 +11,6 @@ public interface ICourseService
     Task<bool> CodeExistsAsync(string code, CancellationToken ct);
     Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(PagedRequest request, CancellationToken ct);
     Task<bool> DeleteAsync(int id, CancellationToken ct);
+    Task<List<CourseResponseDto>> GetByInstructorIdAsync(string instructorId, CancellationToken ct);
 }
-
 

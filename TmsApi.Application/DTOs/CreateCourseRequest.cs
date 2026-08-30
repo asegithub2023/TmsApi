@@ -13,4 +13,9 @@ public record CreateCourseRequest
 
     [Range(1, 200)]
     public int MaxCapacity { get; init; }
+
+    // Admin may assign any instructor (or leave unassigned); if the caller is
+    // an Instructor, the controller overwrites this with their own id
+    // regardless of what's sent here.
+    public string? InstructorId { get; init; }
 }

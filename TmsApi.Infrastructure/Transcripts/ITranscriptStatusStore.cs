@@ -12,4 +12,11 @@ public interface ITranscriptStatusStore
 
     Task<string?> GetReportIdForIdempotencyKeyAsync(string idempotencyKey, CancellationToken ct);
     Task LinkIdempotencyKeyAsync(string idempotencyKey, string reportId, CancellationToken ct);
+
+    // The actual generated file, stored separately from status so a lookup
+    // can happen without pulling the (potentially large) bytes every time.
+    Task SaveContentAsync(string reportId, byte[] content, string contentType, string fileName, CancellationToken ct);
+    Task<TranscriptContent?> GetContentAsync(string reportId, CancellationToken ct);
 }
+
+public record TranscriptContent(byte[] Bytes, string ContentType, string FileName);

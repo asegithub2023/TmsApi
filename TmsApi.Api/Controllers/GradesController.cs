@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,7 @@ namespace TmsApi.Api.Controllers;
 
 [ApiController]
 [Route("api/grades")]
+[Authorize(Roles = "Instructor,Admin")]
 public sealed class GradesController(
     TmsDbContext context,
     IHubContext<TmsHub, ITmsHubClient> hubContext) : ControllerBase

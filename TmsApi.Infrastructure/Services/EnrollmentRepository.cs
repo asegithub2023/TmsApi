@@ -29,6 +29,7 @@ public class EnrollmentRepository : IEnrollmentRepository
     public Task<List<Enrollment>> GetByStudentIdAsync(int studentId, CancellationToken ct) =>
         context.Enrollments
             .AsNoTracking()
+            .Include(e => e.Student)
             .Include(e => e.Course)
             .Where(e => e.StudentId == studentId)
             .ToListAsync(ct);

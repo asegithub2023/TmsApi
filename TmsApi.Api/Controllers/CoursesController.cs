@@ -1,11 +1,14 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using TmsApi.Application.DTOs;
 //using TmsApi.Application.Services;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Application.Interfaces;
+using TmsApi.Domain.Entities;
 namespace TmsApi.Api.Controllers;
 
 [Authorize(Roles = "Instructor,Admin")]
@@ -17,6 +20,7 @@ namespace TmsApi.Api.Controllers;
 public class CoursesController(
     ICourseService courseService,
     IAuthorizationService authorizationService,
+    UserManager<TmsUser> userManager,
     LinkGenerator linkGenerator) : ControllerBase
 {
     [HttpGet("{id:int}", Name = nameof(GetCourseById))]
@@ -63,6 +67,7 @@ public class CoursesController(
             Title = course.Title,
             MaxCapacity = course.MaxCapacity,
             EnrollmentCount = course.EnrollmentCount,
+            InstructorId = course.InstructorId,
             Links = links
         };
 
@@ -78,6 +83,42 @@ public class CoursesController(
     {
         var result = await courseService.GetCoursesAsync(request, ct);
         return Ok(result);
+    }
+
+    // Admin-only: lightweight instructor picker for the course create/edit form.
+    [Authorize(Roles = "Admin")]
+    [HttpGet("instructors")]
+    [ProducesResponseType(typeof(IReadOnlyList<InstructorOptionDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("List instructor accounts")]
+    [EndpointDescription("Returns id/name pairs for every user in the Instructor role, for assigning course ownership.")]
+    public async Task<IActionResult> GetInstructors(CancellationToken ct)
+    {
+        var instructors = await userManager.GetUsersInRoleAsync("Instructor");
+
+        var result = instructors
+            .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
+            .Select(u => new InstructorOptionDto(u.Id, $"{u.FirstName} {u.LastName}".Trim()))
+            .ToList();
+
+        return Ok(result);
+    }
+
+       // Instructor's own courses (Admin can also call this, returning an empty
+    // list unless they happen to be assigned as an instructor on something).
+    [HttpGet("mine")]
+    [ProducesResponseType(typeof(IReadOnlyList<CourseResponseDto>), StatusCodes.Status200OK)]
+    [EndpointSummary("List the caller's own courses")]
+    [EndpointDescription("Returns courses where the current user is the assigned instructor.")]
+    public async Task<IActionResult> GetMine(CancellationToken ct)
+    {
+        var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(currentUserId))
+        {
+            return Unauthorized();
+        }
+
+        var courses = await courseService.GetByInstructorIdAsync(currentUserId, ct);
+        return Ok(courses);
     }
 
     [HttpPost]
@@ -96,6 +137,14 @@ public class CoursesController(
                 Detail = $"A course with code '{request.Code}' is already registered.",
                 Status = StatusCodes.Status409Conflict
             });
+        }
+
+        // Instructors always own the course they create - they can't assign
+        // it to anyone else, whatever InstructorId they happen to send.
+        if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            request = request with { InstructorId = currentUserId };
         }
 
         var result = await courseService.CreateAsync(request, ct);
@@ -120,6 +169,13 @@ public class CoursesController(
         if (!authResult.Succeeded)
         {
             return Forbid(); // 403 Forbidden when caller doesn't own the resource
+        }
+
+        // Only Admin can reassign ownership - an Instructor editing their own
+        // course can never change who it belongs to, regardless of what's sent.
+        if (!User.IsInRole("Admin"))
+        {
+            dto.InstructorId = course.InstructorId;
         }
 
         await courseService.UpdateAsync(id, dto, ct);
@@ -159,3 +215,5 @@ public class CoursesController(
         return NoContent();
     }
 }
+
+public record InstructorOptionDto(string Id, string Name);

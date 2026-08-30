@@ -21,8 +21,17 @@ public class CourseService : ICourseService
             .AsNoTracking()
             .Where(c => c.Id == id)
             .Select(c => new CourseResponseDto(
-                c.Id, c.Code, c.Title, c.MaxCapacity, c.Enrollments.Count))
+                c.Id, c.Code, c.Title, c.MaxCapacity, c.Enrollments.Count, c.InstructorId ))
             .FirstOrDefaultAsync(ct);
+
+    public Task<List<CourseResponseDto>> GetByInstructorIdAsync(string instructorId, CancellationToken ct) =>
+        context.Courses
+            .AsNoTracking()
+            .Where(c => c.InstructorId == instructorId)
+            .OrderBy(c => c.Title)
+            .Select(c => new CourseResponseDto(
+                c.Id, c.Code, c.Title, c.MaxCapacity, c.Enrollments.Count, c.InstructorId))
+            .ToListAsync(ct);
 
     public async Task<CourseResponseDto> CreateAsync(CreateCourseRequest request, CancellationToken ct)
     {
@@ -56,7 +65,6 @@ public class CourseService : ICourseService
 
         logger.LogInformation("Updated course {CourseId} ({Code})", course.Id, course.Code);
     }
-
 
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>
         context.Courses.AsNoTracking().AnyAsync(c => c.Code == code, ct);
@@ -120,7 +128,8 @@ public class CourseService : ICourseService
                 c.Code,
                 c.Title,
                 c.MaxCapacity,
-                c.Enrollments.Count))
+                c.Enrollments.Count,
+               c.InstructorId ))
             .ToListAsync(ct);
 
         return new PagedResponse<CourseResponseDto>

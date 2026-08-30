@@ -34,7 +34,8 @@ public class CachedCourseService(
                     course.Code,
                     course.Title,
                     course.MaxCapacity,
-                    course.Enrollments.Count);
+                    course.Enrollments.Count,
+                    course.InstructorId);
             },
             tags: [CacheKeys.CoursesTag],
             cancellationToken: ct);
@@ -68,7 +69,8 @@ public class CachedCourseService(
                     c.Code,
                     c.Title,
                     c.MaxCapacity,
-                    c.Enrollments.Count)).ToList();
+                    c.Enrollments.Count,
+                    c.InstructorId)).ToList();
             },
             tags: [CacheKeys.CoursesTag],
             cancellationToken: ct);

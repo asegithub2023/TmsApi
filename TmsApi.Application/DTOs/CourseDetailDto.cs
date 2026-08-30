@@ -1,4 +1,3 @@
-
 namespace TmsApi.Application.DTOs;
 public record CourseDetailDto
 {
@@ -7,5 +6,6 @@ public record CourseDetailDto
     public required string Title { get; init; }
     public required int MaxCapacity { get; init; }
     public required int EnrollmentCount { get; init; }
+    public string? InstructorId { get; init; }
     public required IReadOnlyList<LinkDto> Links { get; init; }
 }

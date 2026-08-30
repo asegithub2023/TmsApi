@@ -7,6 +7,7 @@ public class InMemoryTranscriptStatusStore : ITranscriptStatusStore
 {
     private readonly ConcurrentDictionary<string, TranscriptStatus> _byReportId = new();
     private readonly ConcurrentDictionary<string, string> _idempotencyToReportId = new();
+    private readonly ConcurrentDictionary<string, TranscriptContent> _contentByReportId = new();
 
     public Task<TranscriptStatus> CreateAsync(string reportId, int studentId, CancellationToken ct)
     {
@@ -63,6 +64,15 @@ public class InMemoryTranscriptStatusStore : ITranscriptStatusStore
         _idempotencyToReportId.TryAdd(key, reportId);
         return Task.CompletedTask;
     }
+
+    public Task SaveContentAsync(string reportId, byte[] content, string contentType, string fileName, CancellationToken ct)
+    {
+        _contentByReportId[reportId] = new TranscriptContent(content, contentType, fileName);
+        return Task.CompletedTask;
+    }
+
+    public Task<TranscriptContent?> GetContentAsync(string reportId, CancellationToken ct) =>
+        Task.FromResult(_contentByReportId.TryGetValue(reportId, out var content) ? content : null);
 
     private Task Transition(
         string reportId,
