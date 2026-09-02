@@ -1,9 +1,11 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.Hubs;
 using TmsApi.Api.Hubs;
+using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 
 namespace TmsApi.Api.Controllers;
@@ -23,16 +25,52 @@ public sealed class GradesController(
     {
         if (request.Score < 0 || request.Score > 100)
         {
-            return BadRequest(new { error = "Score must be between 0 and 100." });
+            return Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Invalid score",
+                detail: "Score must be between 0 and 100.");
         }
 
+        var course = await context.Courses
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.Id == request.CourseId, ct);
+
+        if (course is null)
+        {
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Course not found",
+                detail: $"Course with id '{request.CourseId}' was not found.");
+        }
+
+        // An Instructor may only grade students in a course they are assigned
+        // to teach by an Admin. Admin can grade any course.
+        if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
+        {
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (course.InstructorId != currentUserId)
+            {
+                return Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Not your course",
+                    detail: "You can't submit a grade because you're not instructor of this course.");
+            }
+        }
+
+        // The student must actually be registered AND approved for this
+        // course before a grade can be posted - Pending/Rejected enrolments
+        // and unregistered students are both treated as "not registered"
+        // from the instructor's point of view.
         var enrollment = await context.Enrollments
             .Include(e => e.Course)
             .FirstOrDefaultAsync(e => e.StudentId == request.StudentId && e.CourseId == request.CourseId, ct);
 
-        if (enrollment is null)
+        if (enrollment is null || enrollment.Status != EnrollmentStatus.Approved)
         {
-            return NotFound(new { error = "Enrollment not found." });
+            return Problem(
+                statusCode: StatusCodes.Status404NotFound,
+                title: "Student not registered",
+                detail: $"There is no student with id '{request.StudentId}' registered in this course.");
         }
 
         enrollment.Grade = request.Score;
