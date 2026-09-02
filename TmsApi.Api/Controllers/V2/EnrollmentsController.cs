@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Asp.Versioning;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -18,12 +19,14 @@ public class EnrollmentsController(
     IMediator mediator,
     IHubContext<TmsHub, ITmsHubClient> hubContext) : ControllerBase
 {
-    // Only Instructor/Admin manage the full enrollment queue across all students.
+    // Admin sees every enrollment across every course. An Instructor only
+    // sees enrollments for courses they are assigned to teach.
     [Authorize(Roles = "Instructor,Admin")]
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        var list = await mediator.Send(new GetAllEnrollmentsQuery(), ct);
+        var scopeInstructorId = GetScopeInstructorId();
+        var list = await mediator.Send(new GetAllEnrollmentsQuery(scopeInstructorId), ct);
         return Ok(list);
     }
 
@@ -58,14 +61,24 @@ public class EnrollmentsController(
     }
 
     // Approving/rejecting is an Instructor/Admin decision, not a student action.
+    // An Instructor may only act on enrollments for courses they are assigned
+    // to teach; Admin may act on any enrollment.
     [Authorize(Roles = "Instructor,Admin")]
     [HttpPost("{id:int}/approve")]
     public async Task<IActionResult> Approve(int id, CancellationToken ct)
     {
-        var approved = await mediator.Send(new ApproveEnrollmentCommand(id), ct);
-        if (!approved)
+        var scopeInstructorId = GetScopeInstructorId();
+        var result = await mediator.Send(new ApproveEnrollmentCommand(id, scopeInstructorId), ct);
+
+        switch (result)
         {
-            return NotFound();
+            case EnrollmentActionResult.NotFound:
+                return NotFound();
+            case EnrollmentActionResult.Forbidden:
+                return Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Not your course",
+                    detail: "You can only approve enrollments for courses you are assigned to teach.");
         }
 
         await hubContext.Clients.All.ReceiveEnrollmentStatusUpdated(id.ToString(), "Approved");
@@ -76,10 +89,18 @@ public class EnrollmentsController(
     [HttpPost("{id:int}/reject")]
     public async Task<IActionResult> Reject(int id, CancellationToken ct)
     {
-        var rejected = await mediator.Send(new RejectEnrollmentCommand(id), ct);
-        if (!rejected)
+        var scopeInstructorId = GetScopeInstructorId();
+        var result = await mediator.Send(new RejectEnrollmentCommand(id, scopeInstructorId), ct);
+
+        switch (result)
         {
-            return NotFound();
+            case EnrollmentActionResult.NotFound:
+                return NotFound();
+            case EnrollmentActionResult.Forbidden:
+                return Problem(
+                    statusCode: StatusCodes.Status403Forbidden,
+                    title: "Not your course",
+                    detail: "You can only reject enrollments for courses you are assigned to teach.");
         }
 
         await hubContext.Clients.All.ReceiveEnrollmentStatusUpdated(id.ToString(), "Rejected");
@@ -112,5 +133,18 @@ public class EnrollmentsController(
     {
         var schedule = await mediator.Send(new GetStudentScheduleQuery(studentId), ct);
         return Ok(schedule);
+    }
+
+    // Admin acts on/sees every enrollment (returns null => no filter applied
+    // downstream). An Instructor is scoped to the courses they teach (returns
+    // their own user id, checked against Course.InstructorId downstream).
+    private string? GetScopeInstructorId()
+    {
+        if (User.IsInRole("Admin"))
+        {
+            return null;
+        }
+
+        return User.FindFirstValue(ClaimTypes.NameIdentifier);
     }
 }

@@ -42,8 +42,12 @@ public class EnrollmentRepository : IEnrollmentRepository
             .OrderByDescending(e => e.EnrolledAt)
             .ToListAsync(ct);
 
+    // Includes Course so callers (e.g. approve/reject) can check
+    // Course.InstructorId for ownership before mutating the enrollment.
     public Task<Enrollment?> GetByIdAsync(int id, CancellationToken ct) =>
-        context.Enrollments.FirstOrDefaultAsync(e => e.Id == id, ct);
+        context.Enrollments
+            .Include(e => e.Course)
+            .FirstOrDefaultAsync(e => e.Id == id, ct);
 
     public async Task UpdateAsync(Enrollment enrollment, CancellationToken ct)
     {
