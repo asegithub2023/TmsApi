@@ -7,9 +7,7 @@ using TmsApi.Application.Hubs;
 using TmsApi.Api.Hubs;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
-
 namespace TmsApi.Api.Controllers;
-
 [ApiController]
 [Route("api/grades")]
 [Authorize(Roles = "Instructor,Admin")]
@@ -19,7 +17,6 @@ public sealed class GradesController(
 {
     public sealed record GradeRequest(int StudentId, int CourseId, decimal Score);
     public sealed record GradeResponse(string Id, bool Success);
-
     [HttpPost]
     public async Task<IActionResult> PostGrade([FromBody] GradeRequest request, CancellationToken ct)
     {
@@ -30,11 +27,9 @@ public sealed class GradesController(
                 title: "Invalid score",
                 detail: "Score must be between 0 and 100.");
         }
-
         var course = await context.Courses
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.Id == request.CourseId, ct);
-
         if (course is null)
         {
             return Problem(
@@ -42,9 +37,6 @@ public sealed class GradesController(
                 title: "Course not found",
                 detail: $"Course with id '{request.CourseId}' was not found.");
         }
-
-        // An Instructor may only grade students in a course they are assigned
-        // to teach by an Admin. Admin can grade any course.
         if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -56,15 +48,9 @@ public sealed class GradesController(
                     detail: "You can't submit a grade because you're not instructor of this course.");
             }
         }
-
-        // The student must actually be registered AND approved for this
-        // course before a grade can be posted - Pending/Rejected enrolments
-        // and unregistered students are both treated as "not registered"
-        // from the instructor's point of view.
         var enrollment = await context.Enrollments
             .Include(e => e.Course)
             .FirstOrDefaultAsync(e => e.StudentId == request.StudentId && e.CourseId == request.CourseId, ct);
-
         if (enrollment is null || enrollment.Status != EnrollmentStatus.Approved)
         {
             return Problem(
@@ -72,13 +58,10 @@ public sealed class GradesController(
                 title: "Student not registered",
                 detail: $"There is no student with id '{request.StudentId}' registered in this course.");
         }
-
         enrollment.Grade = request.Score;
         await context.SaveChangesAsync(ct);
-
         var courseCode = enrollment.Course?.Code ?? string.Empty;
         await hubContext.Clients.All.ReceiveGradePosted(courseCode, enrollment.StudentId, request.Score);
-
         return Created(string.Empty, new GradeResponse(enrollment.Id.ToString(), true));
     }
 }

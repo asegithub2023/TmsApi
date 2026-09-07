@@ -1,7 +1,7 @@
 using TmsApi.Domain.Entities;
-
 namespace TmsApi.Application.Interfaces;
 
+/// <summary>Provides persistence operations for enrollment workflows.</summary>
 public interface IEnrollmentRepository
 {
     Task<bool> ExistsAsync(int studentId, string courseCode, CancellationToken ct);

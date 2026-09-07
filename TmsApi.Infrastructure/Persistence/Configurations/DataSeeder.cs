@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 namespace TmsApi.Infrastructure.Persistence;
-
 public static class DataSeeder
 {
 	private static readonly (string Code, string Title, int MaxCapacity)[] Courses = new[]
@@ -35,19 +34,16 @@ public static class DataSeeder
 		("UX-101", "UX Research and Wireframing", 24),
 		("UX-201", "Design Systems and Tokens", 22)
 	};
-
 	public static async Task SeedAsync(TmsDbContext context, CancellationToken ct = default)
 	{
 		if (context.Database.IsRelational())
 {
     await context.Database.MigrateAsync(ct);
 }
-
 		if (await context.Courses.AnyAsync(ct))
 		{
 			return;
 		}
-
 		foreach (var (code, title, maxCapacity) in Courses)
 		{
 			context.Courses.Add(new Course
@@ -57,7 +53,6 @@ public static class DataSeeder
 				MaxCapacity = maxCapacity
 			});
 		}
-
 		await context.SaveChangesAsync(ct);
 	}
 }

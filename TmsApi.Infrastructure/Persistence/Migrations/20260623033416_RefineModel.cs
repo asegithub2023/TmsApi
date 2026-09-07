@@ -1,28 +1,21 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
-
 #nullable disable
-
 namespace TmsApi.Migrations
 {
-    /// <inheritdoc />
     public partial class RefineModel : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_Enrollments_Courses_CourseId",
                 table: "Enrollments");
-
             migrationBuilder.DropForeignKey(
                 name: "FK_Enrollments_Students_StudentId",
                 table: "Enrollments");
-
             migrationBuilder.DropIndex(
                 name: "IX_Enrollments_StudentId",
                 table: "Enrollments");
-
             migrationBuilder.AlterColumn<string>(
                 name: "RegistrationNumber",
                 table: "Students",
@@ -31,7 +24,6 @@ namespace TmsApi.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "text");
-
             migrationBuilder.AlterColumn<string>(
                 name: "Name",
                 table: "Students",
@@ -40,7 +32,6 @@ namespace TmsApi.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "text");
-
             migrationBuilder.AlterColumn<bool>(
                 name: "IsActive",
                 table: "Students",
@@ -49,7 +40,6 @@ namespace TmsApi.Migrations
                 defaultValue: true,
                 oldClrType: typeof(bool),
                 oldType: "boolean");
-
             migrationBuilder.AlterColumn<decimal>(
                 name: "GPA",
                 table: "Students",
@@ -59,7 +49,6 @@ namespace TmsApi.Migrations
                 nullable: false,
                 oldClrType: typeof(decimal),
                 oldType: "numeric");
-
             migrationBuilder.AlterColumn<decimal>(
                 name: "Grade",
                 table: "Enrollments",
@@ -70,7 +59,6 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(decimal),
                 oldType: "numeric",
                 oldNullable: true);
-
             migrationBuilder.AlterColumn<DateTime>(
                 name: "EnrolledAt",
                 table: "Enrollments",
@@ -79,7 +67,6 @@ namespace TmsApi.Migrations
                 defaultValueSql: "CURRENT_TIMESTAMP",
                 oldClrType: typeof(DateTime),
                 oldType: "timestamp with time zone");
-
             migrationBuilder.AlterColumn<string>(
                 name: "Title",
                 table: "Courses",
@@ -88,7 +75,6 @@ namespace TmsApi.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "text");
-
             migrationBuilder.AlterColumn<string>(
                 name: "Code",
                 table: "Courses",
@@ -97,7 +83,6 @@ namespace TmsApi.Migrations
                 nullable: false,
                 oldClrType: typeof(string),
                 oldType: "text");
-
             migrationBuilder.AlterColumn<int>(
                 name: "Capacity",
                 table: "Courses",
@@ -106,13 +91,11 @@ namespace TmsApi.Migrations
                 defaultValue: 30,
                 oldClrType: typeof(int),
                 oldType: "integer");
-
             migrationBuilder.CreateIndex(
                 name: "IX_Enrollments_StudentId_CourseId",
                 table: "Enrollments",
                 columns: new[] { "StudentId", "CourseId" },
                 unique: true);
-
             migrationBuilder.AddForeignKey(
                 name: "FK_Enrollments_Courses_CourseId",
                 table: "Enrollments",
@@ -120,7 +103,6 @@ namespace TmsApi.Migrations
                 principalTable: "Courses",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
-
             migrationBuilder.AddForeignKey(
                 name: "FK_Enrollments_Students_StudentId",
                 table: "Enrollments",
@@ -129,22 +111,17 @@ namespace TmsApi.Migrations
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
         }
-
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
                 name: "FK_Enrollments_Courses_CourseId",
                 table: "Enrollments");
-
             migrationBuilder.DropForeignKey(
                 name: "FK_Enrollments_Students_StudentId",
                 table: "Enrollments");
-
             migrationBuilder.DropIndex(
                 name: "IX_Enrollments_StudentId_CourseId",
                 table: "Enrollments");
-
             migrationBuilder.AlterColumn<string>(
                 name: "RegistrationNumber",
                 table: "Students",
@@ -153,7 +130,6 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(string),
                 oldType: "character varying(50)",
                 oldMaxLength: 50);
-
             migrationBuilder.AlterColumn<string>(
                 name: "Name",
                 table: "Students",
@@ -162,7 +138,6 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(string),
                 oldType: "character varying(200)",
                 oldMaxLength: 200);
-
             migrationBuilder.AlterColumn<bool>(
                 name: "IsActive",
                 table: "Students",
@@ -171,7 +146,6 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(bool),
                 oldType: "boolean",
                 oldDefaultValue: true);
-
             migrationBuilder.AlterColumn<decimal>(
                 name: "GPA",
                 table: "Students",
@@ -181,7 +155,6 @@ namespace TmsApi.Migrations
                 oldType: "numeric(5,2)",
                 oldPrecision: 5,
                 oldScale: 2);
-
             migrationBuilder.AlterColumn<decimal>(
                 name: "Grade",
                 table: "Enrollments",
@@ -192,7 +165,6 @@ namespace TmsApi.Migrations
                 oldPrecision: 5,
                 oldScale: 2,
                 oldNullable: true);
-
             migrationBuilder.AlterColumn<DateTime>(
                 name: "EnrolledAt",
                 table: "Enrollments",
@@ -201,7 +173,6 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(DateTime),
                 oldType: "timestamp with time zone",
                 oldDefaultValueSql: "CURRENT_TIMESTAMP");
-
             migrationBuilder.AlterColumn<string>(
                 name: "Title",
                 table: "Courses",
@@ -210,7 +181,6 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(string),
                 oldType: "character varying(200)",
                 oldMaxLength: 200);
-
             migrationBuilder.AlterColumn<string>(
                 name: "Code",
                 table: "Courses",
@@ -219,7 +189,6 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(string),
                 oldType: "character varying(50)",
                 oldMaxLength: 50);
-
             migrationBuilder.AlterColumn<int>(
                 name: "Capacity",
                 table: "Courses",
@@ -228,12 +197,10 @@ namespace TmsApi.Migrations
                 oldClrType: typeof(int),
                 oldType: "integer",
                 oldDefaultValue: 30);
-
             migrationBuilder.CreateIndex(
                 name: "IX_Enrollments_StudentId",
                 table: "Enrollments",
                 column: "StudentId");
-
             migrationBuilder.AddForeignKey(
                 name: "FK_Enrollments_Courses_CourseId",
                 table: "Enrollments",
@@ -241,7 +208,6 @@ namespace TmsApi.Migrations
                 principalTable: "Courses",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Cascade);
-
             migrationBuilder.AddForeignKey(
                 name: "FK_Enrollments_Students_StudentId",
                 table: "Enrollments",

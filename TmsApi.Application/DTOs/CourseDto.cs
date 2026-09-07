@@ -1,12 +1,10 @@
 namespace TmsApi.Application.DTOs;
-
 public record CourseDto(
     int Id,
     string Code,
     string Title,
     int MaxCapacity,
     int EnrollmentCount);
-
 public static class CourseDtoFields
 {
     public static readonly HashSet<string> Allowed = new(StringComparer.OrdinalIgnoreCase)

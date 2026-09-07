@@ -1,11 +1,9 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TmsApi.Application.DTOs;
-//using TmsApi.Application.Services;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Application.Interfaces;
 namespace TmsApi.Api.Controllers;
-
 [ApiController]
 [Route("api/courses/{courseId:int}/enrollments")]
 [Tags("Enrollments")]
@@ -26,11 +24,9 @@ public class EnrollmentsController(
         {
             return NotFound();
         }
-
         var enrollments = await enrollmentService.GetByCourseAsync(courseId, ct);
         return Ok(enrollments);
     }
-
     [HttpGet("{id:int}", Name = nameof(GetEnrollment))]
     [ProducesResponseType(typeof(EnrollmentResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -40,7 +36,6 @@ public class EnrollmentsController(
         var enrollment = await enrollmentService.GetByIdAsync(courseId, id, ct);
         return enrollment is not null ? Ok(enrollment) : NotFound();
     }
-
     [HttpPost]
     [ProducesResponseType(typeof(EnrollmentResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -55,7 +50,6 @@ public class EnrollmentsController(
         {
             return NotFound();
         }
-
         if (course.EnrollmentCount >= course.MaxCapacity)
         {
             return Conflict(new ProblemDetails
@@ -65,7 +59,6 @@ public class EnrollmentsController(
                 Status = StatusCodes.Status409Conflict
             });
         }
-
         var enrollment = await enrollmentService.CreateAsync(courseId, request, ct);
         return CreatedAtAction(nameof(GetEnrollment), new { courseId, id = enrollment.Id }, enrollment);
     }

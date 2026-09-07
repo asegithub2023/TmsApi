@@ -4,26 +4,23 @@ namespace TmsApi.Infrastructure.Persistence;
 using TmsApi.Application.Interfaces;
 using TmsApi.Application.DTOs;
 using TmsApi.Domain.Entities;
-
 public class CourseService : ICourseService
 {
     private readonly TmsDbContext context;
     private readonly ILogger<CourseService> logger;
-
     public CourseService(TmsDbContext context, ILogger<CourseService> logger)
     {
         this.context = context;
         this.logger = logger;
     }
-
     public Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct) =>
+        // Read-only projections avoid tracking entities for response queries.
         context.Courses
             .AsNoTracking()
             .Where(c => c.Id == id)
             .Select(c => new CourseResponseDto(
                 c.Id, c.Code, c.Title, c.MaxCapacity, c.Enrollments.Count, c.InstructorId ))
             .FirstOrDefaultAsync(ct);
-
     public Task<List<CourseResponseDto>> GetByInstructorIdAsync(string instructorId, CancellationToken ct) =>
         context.Courses
             .AsNoTracking()
@@ -32,26 +29,22 @@ public class CourseService : ICourseService
             .Select(c => new CourseResponseDto(
                 c.Id, c.Code, c.Title, c.MaxCapacity, c.Enrollments.Count, c.InstructorId))
             .ToListAsync(ct);
-
     public async Task<CourseResponseDto> CreateAsync(CreateCourseRequest request, CancellationToken ct)
     {
+        // Persist the entity before projecting it so the generated ID is available.
         var course = new Course
         {
             Code = request.Code,
             Title = request.Title,
             MaxCapacity = request.MaxCapacity
         };
-
         context.Courses.Add(course);
         await context.SaveChangesAsync(ct);
-
         logger.LogInformation("Created course {CourseId} ({Code})", course.Id, course.Code);
         return (await GetByIdAsync(course.Id, ct))!;
     }
-
     public Task<Course?> GetEntityByIdAsync(int id, CancellationToken ct) =>
         context.Courses.FirstOrDefaultAsync(c => c.Id == id, ct);
-
     public async Task UpdateAsync(int id, UpdateCourseDto dto, CancellationToken ct)
     {
         var course = await context.Courses.FirstOrDefaultAsync(c => c.Id == id, ct);
@@ -59,54 +52,44 @@ public class CourseService : ICourseService
         {
             return;
         }
-
         course.Title = dto.Title;
         await context.SaveChangesAsync(ct);
-
         logger.LogInformation("Updated course {CourseId} ({Code})", course.Id, course.Code);
     }
-
     public Task<bool> CodeExistsAsync(string code, CancellationToken ct) =>
         context.Courses.AsNoTracking().AnyAsync(c => c.Code == code, ct);
-
     public async Task<bool> DeleteAsync(int id, CancellationToken ct)
     {
         var course = await context.Courses
             .Include(c => c.Enrollments)
             .FirstOrDefaultAsync(c => c.Id == id, ct);
-
         if (course is null)
         {
             return false;
         }
-
+        // Historical enrollment records prevent deleting an actively used course.
         var hasActiveEnrollments = course.Enrollments.Any(e => !e.IsArchived);
         if (hasActiveEnrollments)
         {
             return false;
         }
-
         context.Courses.Remove(course);
         await context.SaveChangesAsync(ct);
         return true;
     }
-
     public async Task<PagedResponse<CourseResponseDto>> GetCoursesAsync(PagedRequest request, CancellationToken ct)
     {
+        // Build the filtered query before counting and applying pagination.
         IQueryable<Course> query = context.Courses.AsNoTracking();
-
         if (!string.IsNullOrWhiteSpace(request.Search))
         {
             query = query.Where(c =>
                 EF.Functions.ILike(c.Title, $"%{request.Search}%") ||
                 EF.Functions.ILike(c.Code, $"%{request.Search}%"));
         }
-
         var totalCount = await query.CountAsync(ct);
-
         var page = request.Page < 1 ? 1 : request.Page;
         var pageSize = request.PageSize;
-
         var orderedQuery = request.OrderBy?.ToLowerInvariant() switch
         {
             "code" => request.Descending
@@ -119,7 +102,6 @@ public class CourseService : ICourseService
                 ? query.OrderByDescending(c => c.Title)
                 : query.OrderBy(c => c.Title)
         };
-
         var items = await orderedQuery
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
@@ -131,7 +113,6 @@ public class CourseService : ICourseService
                 c.Enrollments.Count,
                c.InstructorId ))
             .ToListAsync(ct);
-
         return new PagedResponse<CourseResponseDto>
         {
             Items = items,

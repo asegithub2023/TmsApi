@@ -6,7 +6,6 @@ using Microsoft.EntityFrameworkCore;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Services;
-
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -15,7 +14,6 @@ public class AuthController : ControllerBase
     private readonly RoleManager<IdentityRole> _roleManager;
     private readonly TmsDbContext _context;
     private readonly TokenService _tokenService;
-
     public AuthController(
         UserManager<TmsUser> userManager,
         RoleManager<IdentityRole> roleManager,
@@ -27,25 +25,20 @@ public class AuthController : ControllerBase
         _context = context;
         _tokenService = tokenService;
     }
-
     public record RegisterRequest(
         string Email,
         string Password,
         string FirstName,
         string LastName,
         string Role);
-
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
-
         if (existingUser != null)
         {
-            // Prevent account enumeration by returning a generic response
             return Ok(new { message = "Registration request received." });
         }
-
         var user = new TmsUser
         {
             UserName = request.Email,
@@ -53,26 +46,17 @@ public class AuthController : ControllerBase
             FirstName = request.FirstName,
             LastName = request.LastName
         };
-
         var result = await _userManager.CreateAsync(user, request.Password);
-
         if (!result.Succeeded)
         {
             var errors = result.Errors.Select(e => e.Description);
             return BadRequest(new { errors });
         }
-
-        // Ensure requested role exists
         if (!await _roleManager.RoleExistsAsync(request.Role))
         {
             await _roleManager.CreateAsync(new IdentityRole(request.Role));
         }
-
         await _userManager.AddToRoleAsync(user, request.Role);
-
-        // A Student account also needs a Student record so enrollments,
-        // grades, and transcripts can be attributed to a real person
-        // instead of a hardcoded demo student.
         if (string.Equals(request.Role, "Student", StringComparison.OrdinalIgnoreCase))
         {
             var student = new Student
@@ -81,27 +65,21 @@ public class AuthController : ControllerBase
                 Name = $"{request.FirstName} {request.LastName}",
                 Email = request.Email
             };
-
             _context.Students.Add(student);
             await _context.SaveChangesAsync();
         }
-
         return Ok(new { message = "Registration successful." });
     }
-
     public record LoginRequest(string Email, string Password);
-    
     [EnableRateLimiting("AuthLimiter")]
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
-
         if (user == null)
         {
             return Unauthorized(new { detail = "Invalid credentials." });
         }
-
         if (await _userManager.IsLockedOutAsync(user))
         {
             return StatusCode(423, new
@@ -109,27 +87,18 @@ public class AuthController : ControllerBase
                 detail = "Account locked due to multiple failed login attempts. Try again in 15 minutes."
             });
         }
-
         var validPassword = await _userManager.CheckPasswordAsync(user, request.Password);
-
         if (!validPassword)
         {
             await _userManager.AccessFailedAsync(user);
             return Unauthorized(new { detail = "Invalid credentials." });
         }
-
-        // Reset failed attempt counter on successful login
         await _userManager.ResetAccessFailedCountAsync(user);
-
         var roles = await _userManager.GetRolesAsync(user);
-
         var student = await _context.Students
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Email == user.Email);
-
         var accessToken = _tokenService.GenerateJwt(user, roles, student?.Id);
-
-        // Issue initial Refresh Token
         var refreshToken = new RefreshToken
         {
             Token = Guid.NewGuid().ToString("N"),
@@ -138,55 +107,41 @@ public class AuthController : ControllerBase
             IsUsed = false,
             IsRevoked = false
         };
-
         _context.RefreshTokens.Add(refreshToken);
         await _context.SaveChangesAsync();
-
         return Ok(new
         {
             accessToken,
             refreshToken = refreshToken.Token
         });
     }
-
     public record RefreshRequest(string RefreshToken);
-
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
     {
         var storedToken = await _context.RefreshTokens
             .FirstOrDefaultAsync(rt => rt.Token == request.RefreshToken);
-
         if (storedToken == null)
         {
             return Unauthorized(new { detail = "Invalid refresh token." });
         }
-
-        // Theft Detection: If an ALREADY-USED token is submitted, revoke ALL tokens for this user!
         if (storedToken.IsUsed)
         {
             var userTokens = await _context.RefreshTokens
                 .Where(rt => rt.UserId == storedToken.UserId)
                 .ToListAsync();
-
             foreach (var t in userTokens)
             {
                 t.IsRevoked = true;
             }
-
             await _context.SaveChangesAsync();
             return Unauthorized(new { detail = "Token theft detected. All user sessions revoked." });
         }
-
         if (storedToken.IsRevoked || storedToken.ExpiresAt < DateTime.UtcNow)
         {
             return Unauthorized(new { detail = "Refresh token expired or revoked." });
         }
-
-        // Mark current token as used
         storedToken.IsUsed = true;
-
-        // Issue brand-new Refresh Token pair
         var newRefreshToken = new RefreshToken
         {
             Token = Guid.NewGuid().ToString("N"),
@@ -195,19 +150,14 @@ public class AuthController : ControllerBase
             IsUsed = false,
             IsRevoked = false
         };
-
         _context.RefreshTokens.Add(newRefreshToken);
         await _context.SaveChangesAsync();
-
         var user = await _userManager.FindByIdAsync(storedToken.UserId);
         var roles = await _userManager.GetRolesAsync(user!);
-
         var student = await _context.Students
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Email == user!.Email);
-
         var newAccessToken = _tokenService.GenerateJwt(user!, roles, student?.Id);
-
         return Ok(new
         {
             accessToken = newAccessToken,

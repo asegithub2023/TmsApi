@@ -1,7 +1,8 @@
 using TmsApi.Application.DTOs;
 using TmsApi.Domain.Entities;
-
 namespace TmsApi.Application.Interfaces;
+
+/// <summary>Defines course operations exposed to the application layer.</summary>
 public interface ICourseService
 {
     Task<CourseResponseDto?> GetByIdAsync(int id, CancellationToken ct);
@@ -13,4 +14,3 @@ public interface ICourseService
     Task<bool> DeleteAsync(int id, CancellationToken ct);
     Task<List<CourseResponseDto>> GetByInstructorIdAsync(string instructorId, CancellationToken ct);
 }
-

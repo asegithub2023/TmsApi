@@ -1,9 +1,7 @@
 using System.Diagnostics;
 using MediatR;
 using Microsoft.Extensions.Logging;
-
 namespace TmsApi.Application.Behaviors;
-
 public class LoggingBehavior<TRequest, TResponse>(
     ILogger<LoggingBehavior<TRequest, TResponse>> logger)
     : IPipelineBehavior<TRequest, TResponse> where TRequest : notnull
@@ -17,16 +15,13 @@ public class LoggingBehavior<TRequest, TResponse>(
         var correlationId = Activity.Current?.TraceId.ToString() ??
             Guid.NewGuid().ToString("N");
         var stopwatch = Stopwatch.StartNew();
-
         using var scope = logger.BeginScope(new Dictionary<string, object?>
         {
             ["RequestName"] = requestName,
             ["CorrelationId"] = correlationId
         });
-
         logger.LogInformation("Handling {RequestName} (cid={CorrelationId})",
             requestName, correlationId);
-
         try
         {
             var response = await next();

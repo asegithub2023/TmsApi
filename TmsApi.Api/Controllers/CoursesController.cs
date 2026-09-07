@@ -5,12 +5,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using TmsApi.Application.DTOs;
-//using TmsApi.Application.Services;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
 namespace TmsApi.Api.Controllers;
-
 [Authorize(Roles = "Instructor,Admin")]
 [ApiController]
 [Route("api/courses")]
@@ -36,17 +34,14 @@ public class CoursesController(
         {
             return NotFound();
         }
-
         var selfPath = linkGenerator.GetPathByName(HttpContext, nameof(GetCourseById), new { id })
             ?? throw new InvalidOperationException("Unable to generate self link.");
-
         var enrollmentsPath = linkGenerator.GetPathByAction(
                 HttpContext,
                 action: "GetEnrollments",
                 controller: "Enrollments",
                 values: new { courseId = id })
             ?? throw new InvalidOperationException("Unable to generate enrollments link.");
-
         var links = new List<LinkDto>
         {
             new(selfPath, "self", "GET"),
@@ -54,12 +49,10 @@ public class CoursesController(
             new(selfPath, "delete", "DELETE"),
             new(enrollmentsPath, "enrollments", "GET")
         };
-
         if (course.EnrollmentCount < course.MaxCapacity)
         {
             links.Add(new LinkDto(enrollmentsPath, "enroll", "POST"));
         }
-
         var detailDto = new CourseDetailDto
         {
             Id = course.Id,
@@ -70,10 +63,8 @@ public class CoursesController(
             InstructorId = course.InstructorId,
             Links = links
         };
-
         return Ok(detailDto);
     }
-
     [HttpGet]
     [AllowAnonymous]
     [ProducesResponseType(typeof(PagedResponse<CourseResponseDto>), StatusCodes.Status200OK)]
@@ -84,8 +75,6 @@ public class CoursesController(
         var result = await courseService.GetCoursesAsync(request, ct);
         return Ok(result);
     }
-
-    // Admin-only: lightweight instructor picker for the course create/edit form.
     [Authorize(Roles = "Admin")]
     [HttpGet("instructors")]
     [ProducesResponseType(typeof(IReadOnlyList<InstructorOptionDto>), StatusCodes.Status200OK)]
@@ -94,17 +83,12 @@ public class CoursesController(
     public async Task<IActionResult> GetInstructors(CancellationToken ct)
     {
         var instructors = await userManager.GetUsersInRoleAsync("Instructor");
-
         var result = instructors
             .OrderBy(u => u.LastName).ThenBy(u => u.FirstName)
             .Select(u => new InstructorOptionDto(u.Id, $"{u.FirstName} {u.LastName}".Trim()))
             .ToList();
-
         return Ok(result);
     }
-
-       // Instructor's own courses (Admin can also call this, returning an empty
-    // list unless they happen to be assigned as an instructor on something).
     [HttpGet("mine")]
     [ProducesResponseType(typeof(IReadOnlyList<CourseResponseDto>), StatusCodes.Status200OK)]
     [EndpointSummary("List the caller's own courses")]
@@ -116,11 +100,9 @@ public class CoursesController(
         {
             return Unauthorized();
         }
-
         var courses = await courseService.GetByInstructorIdAsync(currentUserId, ct);
         return Ok(courses);
     }
-
     [HttpPost]
     [ProducesResponseType(typeof(CourseResponseDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
@@ -138,19 +120,14 @@ public class CoursesController(
                 Status = StatusCodes.Status409Conflict
             });
         }
-
-        // Instructors always own the course they create - they can't assign
-        // it to anyone else, whatever InstructorId they happen to send.
         if (User.IsInRole("Instructor") && !User.IsInRole("Admin"))
         {
             var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             request = request with { InstructorId = currentUserId };
         }
-
         var result = await courseService.CreateAsync(request, ct);
         return CreatedAtAction(nameof(GetCourseById), new { id = result.Id }, result);
     }
-
     [HttpPut("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status403Forbidden)]
@@ -164,24 +141,18 @@ public class CoursesController(
         {
             return NotFound();
         }
-
         var authResult = await authorizationService.AuthorizeAsync(User, course, "CanEditCourse");
         if (!authResult.Succeeded)
         {
-            return Forbid(); // 403 Forbidden when caller doesn't own the resource
+            return Forbid();
         }
-
-        // Only Admin can reassign ownership - an Instructor editing their own
-        // course can never change who it belongs to, regardless of what's sent.
         if (!User.IsInRole("Admin"))
         {
             dto.InstructorId = course.InstructorId;
         }
-
         await courseService.UpdateAsync(id, dto, ct);
         return NoContent();
     }
-
     [HttpDelete("{id:int}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -200,7 +171,6 @@ public class CoursesController(
                 Status = StatusCodes.Status404NotFound
             });
         }
-
         var deleted = await courseService.DeleteAsync(id, ct);
         if (!deleted)
         {
@@ -211,9 +181,7 @@ public class CoursesController(
                 Status = StatusCodes.Status409Conflict
             });
         }
-
         return NoContent();
     }
 }
-
 public record InstructorOptionDto(string Id, string Name);

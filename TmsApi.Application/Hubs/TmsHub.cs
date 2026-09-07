@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using TmsApi.Application.Hubs;
-
 namespace TmsApi.Api.Hubs;
-
 public class TmsHub : Hub<ITmsHubClient>
 {
     public override async Task OnConnectedAsync()
@@ -12,26 +10,21 @@ public class TmsHub : Hub<ITmsHubClient>
         {
             await Groups.AddToGroupAsync(Context.ConnectionId, GroupNames.Student(studentId));
         }
-
         await base.OnConnectedAsync();
     }
-
     public async Task JoinCourseGroup(string courseCode)
     {
         await Groups.AddToGroupAsync(Context.ConnectionId, GroupNames.Course(courseCode));
     }
-
     public async Task LeaveCourseGroup(string courseCode)
     {
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, GroupNames.Course(courseCode));
     }
-
     public override Task OnDisconnectedAsync(Exception? exception)
     {
         return base.OnDisconnectedAsync(exception);
     }
 }
-
 public static class GroupNames
 {
     public static string Student(string studentId) => $"student-{studentId}";

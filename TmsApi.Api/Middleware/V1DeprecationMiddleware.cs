@@ -1,10 +1,8 @@
 namespace TmsApi.Api.Middleware;
-
 public class V1DeprecationMiddleware(RequestDelegate next)
 {
     private static readonly DateTimeOffset SunsetDate =
         new(2026, 12, 31, 0, 0, 0, TimeSpan.Zero);
-
     public async Task InvokeAsync(HttpContext context)
     {
         context.Response.OnStarting(() =>
@@ -18,7 +16,6 @@ public class V1DeprecationMiddleware(RequestDelegate next)
             }
             return Task.CompletedTask;
         });
-
         await next(context);
     }
 }

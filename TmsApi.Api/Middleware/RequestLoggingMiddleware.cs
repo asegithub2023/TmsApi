@@ -1,10 +1,8 @@
 using System.Diagnostics;
-
 public class RequestLoggingMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<RequestLoggingMiddleware> _logger;
-
     public RequestLoggingMiddleware(
         RequestDelegate next,
         ILogger<RequestLoggingMiddleware> logger)
@@ -12,27 +10,21 @@ public class RequestLoggingMiddleware
         _next = next;
         _logger = logger;
     }
-
     public async Task InvokeAsync(HttpContext context)
     {
+        // A short correlation ID makes a request traceable across structured logs.
         var correlationId =
             Guid.NewGuid().ToString("N")[..8];
-
         var stopwatch = Stopwatch.StartNew();
-
         context.Response.Headers["X-Correlation-Id"] =
             correlationId;
-
         _logger.LogInformation(
             "Request Started | {Method} {Path} | CorrelationId: {CorrelationId}",
             context.Request.Method,
             context.Request.Path,
             correlationId);
-
         await _next(context);
-
         stopwatch.Stop();
-
         _logger.LogInformation(
             "Request Finished | Status: {StatusCode} | {Elapsed} ms | CorrelationId: {CorrelationId}",
             context.Response.StatusCode,

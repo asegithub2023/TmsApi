@@ -2,9 +2,7 @@ using MediatR;
 using TmsApi.Application.Common;
 using TmsApi.Application.Interfaces;
 using TmsApi.Domain.Entities;
-
 namespace TmsApi.Application.Enrollments.Commands;
-
 public class EnrollStudentHandler(
     IEnrollmentRepository enrollmentRepo,
     ICourseRepository courseRepo)
@@ -13,28 +11,24 @@ public class EnrollStudentHandler(
     public async Task<Result<EnrollmentCreated, EnrollmentError>> Handle(
         EnrollStudentCommand command, CancellationToken ct)
     {
+        // Validate the course and enrollment constraints before creating a row.
         var course = await courseRepo.GetByCodeAsync(command.CourseCode, ct);
         if (course is null)
             return Result<EnrollmentCreated, EnrollmentError>.Failure(
                 EnrollmentError.CourseNotFound(command.CourseCode));
-
         if (course.Enrollments.Count >= course.MaxCapacity)
             return Result<EnrollmentCreated, EnrollmentError>.Failure(
                 EnrollmentError.CourseFull(course.Title, course.MaxCapacity));
-
         if (await enrollmentRepo.ExistsAsync(command.StudentId, command.CourseCode, ct))
             return Result<EnrollmentCreated, EnrollmentError>.Failure(
                 EnrollmentError.AlreadyEnrolled(command.StudentId, command.CourseCode));
-
         var enrollment = new Enrollment
         {
             StudentId = command.StudentId,
             CourseId = course.Id,
             EnrolledAt = DateTime.UtcNow
         };
-
         await enrollmentRepo.AddAsync(enrollment, ct);
-
         return Result<EnrollmentCreated, EnrollmentError>.Success(
             new EnrollmentCreated(enrollment.Id, enrollment.StudentId, course.Code));
     }

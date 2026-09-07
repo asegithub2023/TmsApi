@@ -1,9 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Mvc;
-
 namespace TmsApi.Api.ExceptionHandlers;
-
 public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
     : IExceptionHandler
 {
@@ -19,29 +17,24 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
         (IDictionary<string, string[]>?)ve.Errors
             .GroupBy(e => e.PropertyName)
             .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray())),
-
     Application.Common.BadRequestException bre => (
         StatusCodes.Status400BadRequest,
         "Invalid request",
         bre.Message,
         null),
-
     Application.Common.NotFoundException nfe => (
         StatusCodes.Status404NotFound,
         "Resource not found",
         nfe.Message,
         null),
-
     _ => (
         StatusCodes.Status500InternalServerError,
         "Server error",
         $"An unexpected error occurred. Trace ID: {httpContext.TraceIdentifier}",
         null)
 };
-
         if (status == StatusCodes.Status500InternalServerError)
             logger.LogError(exception, "Unhandled exception (trace={TraceId})", httpContext.TraceIdentifier);
-
         var problem = new ProblemDetails
         {
             Status = status,
@@ -49,13 +42,10 @@ public class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> logger)
             Detail = detail,
             Instance = httpContext.Request.Path
         };
-
         if (errors is not null)
             problem.Extensions["errors"] = errors;
-
         httpContext.Response.StatusCode = status;
         httpContext.Response.ContentType = "application/problem+json";
-
         await httpContext.Response.WriteAsJsonAsync(problem, ct);
         return true;
     }

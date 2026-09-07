@@ -1,5 +1,4 @@
 namespace TmsApi.Application.DTOs;
-
 public record EnrollmentListItemDto(
     int Id,
     int StudentId,

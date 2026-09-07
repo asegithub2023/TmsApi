@@ -11,9 +11,7 @@ using TmsApi.Application.Transcripts;
 using TmsApi.Domain.Entities;
 using TmsApi.Infrastructure.Persistence;
 using TmsApi.Infrastructure.Transcripts;
-
 namespace TmsApi.Infrastructure.Workers;
-
 public class TranscriptWorker(
     Channel<TranscriptRequest> channel,
     IServiceScopeFactory scopeFactory,
@@ -25,50 +23,38 @@ public class TranscriptWorker(
     protected override async Task ExecuteAsync(CancellationToken ct)
     {
         logger.LogInformation("Transcript worker started.");
-
         await foreach (var request in channel.Reader.ReadAllAsync(ct))
         {
+            // Each queued job gets its own scope because the worker is singleton-based.
             var reportId = request.ReportId
                 ?? throw new InvalidOperationException("ReportId must be set before queueing.");
-
             try
             {
                 await statusStore.MarkProcessingAsync(reportId, ct);
-
                 logger.LogInformation(
                     "Generating transcript {ReportId} for student {StudentId}",
                     reportId,
                     request.StudentId);
-
                 using var scope = scopeFactory.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<TmsDbContext>();
-
                 var student = await db.Students
                     .AsNoTracking()
                     .FirstOrDefaultAsync(s => s.Id == request.StudentId, ct);
-
                 var enrollments = await db.Enrollments
                     .AsNoTracking()
                     .Include(e => e.Course)
                     .Where(e => e.StudentId == request.StudentId)
                     .OrderBy(e => e.EnrolledAt)
                     .ToListAsync(ct);
-
-                // Simulated processing delay - kept from the original stub so
-                // the Queued -> Processing -> Ready pipeline stays observable.
                 await Task.Delay(TimeSpan.FromSeconds(5), ct);
-
                 var fileName = $"transcript-{reportId}.txt";
                 var content = BuildTranscriptText(student, enrollments);
                 await statusStore.SaveContentAsync(reportId, content, "text/plain", fileName, ct);
-
                 var downloadUrl = $"/api/v2/transcripts/{reportId}/download";
                 await statusStore.MarkReadyAsync(reportId, downloadUrl, ct);
-
                 await hubContext.Clients
                     .Group(GroupNames.Student(request.StudentId.ToString()))
                     .ReceiveTranscriptReady(reportId, downloadUrl);
-
                 logger.LogInformation(
                     "Transcript ready, notification sent: {ReportId} to {Group}",
                     reportId,
@@ -86,14 +72,13 @@ public class TranscriptWorker(
             }
         }
     }
-
     private static byte[] BuildTranscriptText(Student? student, List<Enrollment> enrollments)
     {
+        // Generate a stable plain-text format for downloads and automated consumers.
         var sb = new StringBuilder();
         sb.AppendLine("UNOFFICIAL TRANSCRIPT (TMS demo environment)");
         sb.AppendLine("======================================================");
         sb.AppendLine();
-
         if (student is null)
         {
             sb.AppendLine("Student record not found.");
@@ -104,11 +89,9 @@ public class TranscriptWorker(
             sb.AppendLine($"Registration Number:  {student.RegistrationNumber}");
             sb.AppendLine($"GPA:                  {student.GPA:0.00}");
         }
-
         sb.AppendLine();
         sb.AppendLine("Code       Title                                Grade   Status      Enrolled");
         sb.AppendLine("------------------------------------------------------------------------------");
-
         if (enrollments.Count == 0)
         {
             sb.AppendLine("(no enrollments on record)");
@@ -123,13 +106,10 @@ public class TranscriptWorker(
                     $"{e.Course.Code,-11}{title,-37}{grade,-8}{e.Status,-12}{e.EnrolledAt:yyyy-MM-dd}");
             }
         }
-
         sb.AppendLine();
         sb.AppendLine($"Generated: {DateTimeOffset.UtcNow:u}");
-
         return Encoding.UTF8.GetBytes(sb.ToString());
     }
-
     private static string Truncate(string value, int maxLength) =>
         value.Length <= maxLength ? value : value[..(maxLength - 1)] + "...";
 }

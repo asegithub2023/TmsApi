@@ -1,21 +1,17 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Application.DTOs;
-//using TmsApi.Application.Services;
 using TmsApi.Infrastructure.Persistence;
 namespace TmsApi.Api.Controllers;
-
 [ApiController]
 [Route("api/reporting")]
 public class ReportingController : ControllerBase
 {
     private readonly TmsDbContext _context;
-
     public ReportingController(TmsDbContext context)
     {
         _context = context;
     }
-
     [HttpGet("active-honors")]
     public async Task<IActionResult> GetActiveHonorStudents()
     {
@@ -24,7 +20,6 @@ public class ReportingController : ControllerBase
             .CountAsync();
         return Ok(new { Count = count });
     }
-
     [HttpGet("courses/by-enrollment")]
     public async Task<IActionResult> GetCoursesByEnrollmentCount()
     {
@@ -38,7 +33,6 @@ public class ReportingController : ControllerBase
             .ToListAsync();
         return Ok(list);
     }
-
     [HttpGet("enrollments/average-gpa-by-course")]
     public async Task<IActionResult> GetAverageGPAByCourse()
     {
@@ -52,7 +46,6 @@ public class ReportingController : ControllerBase
             .ToListAsync();
         return Ok(list);
     }
-
     [HttpGet("students/unenrolled")]
     public async Task<IActionResult> GetUnenrolledStudents()
     {
@@ -62,7 +55,6 @@ public class ReportingController : ControllerBase
             .ToListAsync();
         return Ok(list);
     }
-
     [HttpGet("students/not-enrolled-in-any")]
     public async Task<IActionResult> GetStudentsNotEnrolledInAny()
     {
@@ -76,7 +68,6 @@ public class ReportingController : ControllerBase
             .ToListAsync();
         return Ok(list);
     }
-
     [HttpGet("students/n-plus-one-demo")]
     public async Task<IActionResult> GetStudentsNPlusOneDemo(CancellationToken cancellationToken)
     {
@@ -84,19 +75,15 @@ public class ReportingController : ControllerBase
         var students = await _context.Students
             .AsNoTracking()
             .ToListAsync(cancellationToken);
-
         foreach (var student in students)
         {
             var count = await _context.Enrollments
                 .AsNoTracking()
                 .CountAsync(e => e.StudentId == student.Id, cancellationToken);
-
             results.Add(new { student.Name, EnrollmentCount = count });
         }
-
         return Ok(results);
     }
-
     [HttpGet("students/n-plus-one-fixed")]
     public async Task<IActionResult> GetStudentsNPlusOneFixed(CancellationToken cancellationToken)
     {
@@ -108,10 +95,8 @@ public class ReportingController : ControllerBase
                 EnrollmentCount = s.Enrollments.Count
             })
             .ToListAsync(cancellationToken);
-
         return Ok(report);
     }
-
     [HttpGet("students/soft-delete-admin")]
     public async Task<IActionResult> GetStudentsIncludingDeleted(CancellationToken cancellationToken)
     {
@@ -124,10 +109,8 @@ public class ReportingController : ControllerBase
                 s.IsActive
             })
             .ToListAsync(cancellationToken);
-
         return Ok(students);
     }
-
     [HttpPost("enrollments/archive-old")]
     public async Task<IActionResult> ArchiveOldEnrollments(CancellationToken cancellationToken)
     {
@@ -135,9 +118,6 @@ public class ReportingController : ControllerBase
         var affected = await _context.Enrollments
             .Where(e => e.EnrolledAt < cutoff)
             .ExecuteUpdateAsync(s => s.SetProperty(e => e.IsArchived, true), cancellationToken);
-
         return Ok(new { UpdatedRows = affected });
     }
 }
-
-

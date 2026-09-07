@@ -1,5 +1,4 @@
 namespace TmsApi.Application.Common;
-
 public sealed record EnrollmentError(string Code, string Message)
 {
     public static EnrollmentError CourseNotFound(string code) =>

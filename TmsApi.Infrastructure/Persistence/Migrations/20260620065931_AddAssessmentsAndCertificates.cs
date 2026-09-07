@@ -1,15 +1,11 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-
 #nullable disable
-
 namespace TmsApi.Migrations
 {
-    /// <inheritdoc />
     public partial class AddAssessmentsAndCertificates : Migration
     {
-        /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
@@ -33,7 +29,6 @@ namespace TmsApi.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
-
             migrationBuilder.CreateTable(
                 name: "Certificates",
                 columns: table => new
@@ -61,29 +56,23 @@ namespace TmsApi.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
-
             migrationBuilder.CreateIndex(
                 name: "IX_Assessments_CourseId",
                 table: "Assessments",
                 column: "CourseId");
-
             migrationBuilder.CreateIndex(
                 name: "IX_Certificates_CourseId",
                 table: "Certificates",
                 column: "CourseId");
-
             migrationBuilder.CreateIndex(
                 name: "IX_Certificates_StudentId",
                 table: "Certificates",
                 column: "StudentId");
         }
-
-        /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
                 name: "Assessments");
-
             migrationBuilder.DropTable(
                 name: "Certificates");
         }

@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-
 public class PaymentOptions
 {
     [Required]
@@ -8,7 +7,6 @@ public class PaymentOptions
         get;
         init;
     }
-
     [Range(100, 100000)]
     public decimal MaxDepositBirr
     {

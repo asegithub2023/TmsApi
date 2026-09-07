@@ -1,7 +1,5 @@
-
 using System;
 using System.Collections.Generic;
-
 namespace TmsApi.Application.DTOs;
 public record PagedResponse<T>
 {
@@ -13,5 +11,3 @@ public record PagedResponse<T>
 	public bool HasPrevious => Page > 1;
 	public bool HasNext => Page < TotalPages;
 }
-
-

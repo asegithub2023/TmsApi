@@ -2,9 +2,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TmsApi.Infrastructure.Persistence;
-
 namespace TmsApi.Api.Controllers.V1;
-
 [ApiController]
 [Route("api/v{version:apiVersion}/courses")]
 [ApiVersion("1.0")]
@@ -18,11 +16,8 @@ public class CoursesController(TmsDbContext context) : ControllerBase
     {
         page = Math.Max(1, page);
         pageSize = Math.Clamp(pageSize, 1, 50);
-
         var baseQuery = context.Courses.AsNoTracking();
-
         var totalCount = await baseQuery.CountAsync(ct);
-
         var items = await baseQuery
             .OrderBy(c => c.Title)
             .Skip((page - 1) * pageSize)
@@ -36,9 +31,7 @@ public class CoursesController(TmsDbContext context) : ControllerBase
                 EnrollmentCount = c.Enrollments.Count
             })
             .ToListAsync(ct);
-
         var totalPages = (int)Math.Ceiling(totalCount / (double)pageSize);
-
         return Ok(new
         {
             items,

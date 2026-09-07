@@ -1,7 +1,6 @@
 using TmsApi.Application.DTOs;
 namespace TmsApi.Application.Interfaces;
 public interface IEnrollmentService
-
 {
     Task<EnrollmentResponseDto?> GetByIdAsync(int courseId, int id, CancellationToken ct);
     Task<IReadOnlyList<EnrollmentResponseDto>> GetByCourseAsync(int courseId, CancellationToken ct);

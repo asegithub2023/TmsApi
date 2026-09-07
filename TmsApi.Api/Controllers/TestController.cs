@@ -8,12 +8,10 @@ namespace TmsApi.Api.Controllers;
 public class TestController : ControllerBase
 {
     private readonly TmsDbContext _context;
-
     public TestController(TmsDbContext context)
     {
         _context = context;
     }
-
     [HttpGet("deferred")]
     public IActionResult TestDeferred()
     {
@@ -22,17 +20,14 @@ public class TestController : ControllerBase
         Console.WriteLine(">>> STEP 2: Appending a sorting clause...");
         var orderedQuery = query.OrderBy(s => s.Name);
         Console.WriteLine(">>> STEP 3: Materializing query into a C# List...");
-        var results = orderedQuery.ToList(); // Execution is triggered
+        var results = orderedQuery.ToList();
         Console.WriteLine(">>> STEP 4: Materialization finished. List populated.\n");
         return Ok(results);
     }
-
-    // Non-translatable helper method
     private static bool IsHonorRoll(decimal gpa)
     {
         return gpa >= 3.5m;
     }
-
     [HttpGet("translation-fail")]
     public IActionResult TestTranslationFail()
     {
@@ -40,7 +35,7 @@ public class TestController : ControllerBase
         try
         {
             var students = _context.Students
-                .Where(s => IsHonorRoll(s.GPA)) // EF Core does not know how to map this method to SQL
+                .Where(s => IsHonorRoll(s.GPA))
                 .ToList();
             return Ok(students);
         }
