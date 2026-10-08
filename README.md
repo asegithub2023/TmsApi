@@ -1,147 +1,120 @@
-# TmsApi — Training Management System API
+# TmsApi | Training Management System
 
-TmsApi is a REST API for managing course offerings, student enrollments, instructor workflows, and academic records. It provides role-aware access for students, instructors, and administrators, with enrollment decisions, grading, reporting, and asynchronous transcript generation. This repository contains the .NET backend; no frontend application is included.
+An API-first training management system for course catalogs, student enrollment workflows, instructor decisions, and academic records.
 
-## Key Features
+![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Npgsql-4169E1?logo=postgresql&logoColor=white)
+![Architecture](https://img.shields.io/badge/Architecture-layered-0A7B83)
 
-- **Course management:** browse and paginate courses; create, update, and delete courses with unique codes. Course updates are checked against instructor ownership, and deletion is blocked while non-archived enrollments exist.
-- **Enrollment workflow:** submit enrollment requests, prevent duplicate or over-capacity enrollments, and let instructors or administrators approve or reject requests.
-- **Role-aware access:** student, instructor, and administrator roles; instructors are scoped to assigned courses for protected operations.
-- **Authentication:** ASP.NET Core Identity-backed registration and sign-in, short-lived JWT access tokens, refresh-token rotation, and failed-login lockout.
-- **Grades and reporting:** record course grades and query student, enrollment, and course summaries.
-- **Transcripts:** queue transcript requests, check processing status, download generated plain-text transcripts, and receive SignalR notifications.
-- **API safeguards:** request validation, structured Problem Details errors, rate limiting, health endpoints, and API version/deprecation handling.
-
-## Architecture
-
-The solution is a layered .NET application organized as a modular monolith:
-
-```text
-HTTP client ── REST / SignalR ──> ASP.NET Core API
-                                      │
-                       Application services / MediatR
-                                      │
-                       Domain model and contracts
-                                      │
-                 Infrastructure: EF Core, PostgreSQL,
-                    repositories, cache, background work
-```
-
-The application layer uses services and repositories for core operations, and MediatR request/handler flows for versioned enrollment commands and queries. Some endpoints also query the EF Core context directly. Transcript work is processed by a hosted worker through a bounded in-process channel; its status and generated file contents are held in memory, so they do not survive an API restart.
-
-The API exposes REST endpoints and a SignalR hub at `/hubs/tms`. CORS is configured for a separate client (the development default is `http://localhost:4200`); the client itself is not part of this repository.
-
-## Technology Stack
-
-- **Runtime/API:** .NET 10, ASP.NET Core
-- **Persistence:** Entity Framework Core, PostgreSQL via Npgsql, EF Core migrations
-- **Identity and security:** ASP.NET Core Identity, JWT bearer authentication, role and resource-based authorization
-- **Application patterns:** dependency injection, service/repository abstractions, MediatR, FluentValidation
-- **Realtime/background work:** SignalR, hosted services, `System.Threading.Channels`
-- **Resilience and caching:** Polly resilience pipeline; .NET HybridCache course-service implementation
-- **API diagnostics:** development-only OpenAPI/Scalar UI, health checks, JSON console logging, OpenTelemetry with OTLP export
-- **Tests:** xUnit, ASP.NET Core integration-test hosting, EF Core InMemory, NSubstitute
+> This repository contains the TmsApi backend. No frontend project is included in this solution.
 
 ## Screenshots
 
-Screenshots are placeholders for the separately prepared client UI. Replace each placeholder with the real GitHub-hosted image path when ready; no image paths are assumed here.
+|                                     API reference                                      |                                 Course workflow                                  |                                 Transcript workflow                                 |
+| :------------------------------------------------------------------------------------: | :------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------: |
+| <!-- Replace with actual screenshot path: API reference --> **Screenshot placeholder** | <!-- Replace with actual screenshot path: courses --> **Screenshot placeholder** | <!-- Replace with actual screenshot path: transcript --> **Screenshot placeholder** |
 
-### Course management
+## Key Features
 
-<!-- Replace this placeholder with the actual GitHub screenshot path. -->
+- Course catalog with search, pagination, and instructor-scoped course management.
+- Student enrollment requests with capacity and duplicate checks; instructor/admin approval and rejection.
+- Identity registration, JWT authentication, refresh-token rotation, and role-based access.
+- Grade entry, academic reporting, and SignalR updates for grades and enrollment decisions.
+- Asynchronous plain-text transcript generation with status polling, optional idempotency keys, and SignalR notifications.
+- URL-based API versioning, request validation, Problem Details errors, rate limiting, and health checks.
 
-[Screenshot placeholder]
+## Architecture
 
-### Enrollment workflow
+The solution separates HTTP delivery, use cases, domain entities, and external concerns into four projects. Application workflows use MediatR and repository contracts where implemented; some controllers also access the EF Core context directly.
 
-<!-- Replace this placeholder with the actual GitHub screenshot path. -->
+```mermaid
+flowchart LR
+    Client[HTTP / SignalR client] --> API[TmsApi.Api<br/>Controllers, auth, middleware, hub]
+    API --> APP[TmsApi.Application<br/>Use cases, DTOs, contracts, behaviors]
+    APP --> DOMAIN[TmsApi.Domain<br/>Students, courses, enrollments]
+    INFRA[TmsApi.Infrastructure<br/>EF Core, PostgreSQL, repositories, cache, workers]
+    INFRA --> APP
+    INFRA --> DOMAIN
+    API --> INFRA
+    INFRA --> DB[(PostgreSQL)]
+```
 
-[Screenshot placeholder]
+| Project                 | Responsibility in this solution                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TmsApi.Api`            | ASP.NET Core endpoints, authentication/authorization, middleware, API versioning, SignalR, and service registration.                        |
+| `TmsApi.Application`    | Enrollment use cases, request/response models, validation and logging pipeline behaviors, and service/repository interfaces.                |
+| `TmsApi.Domain`         | Core student, course, enrollment, and user entities and enrollment state.                                                                   |
+| `TmsApi.Infrastructure` | EF Core persistence and migrations, PostgreSQL integration, repositories, HybridCache service, external HTTP client, and transcript worker. |
 
-### Student transcript
+This describes the projects present in this repository; no `RealEstateApi` project or solution is included here.
 
-<!-- Replace this placeholder with the actual GitHub screenshot path. -->
+## API Surface
 
-[Screenshot placeholder]
+| Area               | Representative routes                                                          |
+| ------------------ | ------------------------------------------------------------------------------ |
+| Authentication     | `POST /api/auth/register`, `/api/auth/login`, `/api/auth/refresh`              |
+| Courses            | `/api/courses`; versioned reads at `/api/v1.0/courses` and `/api/v2.0/courses` |
+| Enrollments        | `/api/v2.0/enrollments`                                                        |
+| Transcripts        | `/api/v2.0/transcripts`                                                        |
+| Grades & reporting | `/api/grades`, `/api/reporting`                                                |
+| Realtime           | SignalR hub at `/hubs/tms`                                                     |
 
-## Core Workflows
+V1 responses are marked with deprecation and sunset headers. OpenAPI and Scalar are enabled in Development. See [API versioning policy](docs/api-versioning-policy.md) for the documented compatibility policy.
 
-1. **Course setup:** administrators and instructors manage courses; instructors can only edit courses assigned to them, while administrators can manage all courses.
-2. **Enrollment:** students submit requests against a course code. The application checks that the course exists, has capacity, and the student is not already enrolled; instructors can approve or reject requests for their courses.
-3. **Academic records:** instructors and administrators post scores for enrolled students. Grade changes are broadcast through SignalR.
-4. **Transcript generation:** an authorized caller requests a transcript, optionally supplying an `Idempotency-Key`. The API returns an accepted response and status URL while a background worker builds the downloadable transcript and notifies the student's SignalR group when it is ready.
+## Tech Stack
 
-## API Overview
-
-Selected endpoint areas:
-
-| Area           | Routes                                                            | Purpose                                                                        |
-| -------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| Authentication | `POST /api/auth/register`, `/api/auth/login`, `/api/auth/refresh` | Account registration and token lifecycle                                       |
-| Courses        | `GET /api/v1.0/courses`; `/api/courses`                           | Paginated versioned listing and unversioned course-management endpoints        |
-| Enrollments    | `/api/v2.0/enrollments`                                           | Student enrollment requests, schedules, instructor/admin listing and decisions |
-| Transcripts    | `/api/v2.0/transcripts`                                           | Request, check status, and download transcripts                                |
-| Grades         | `/api/grades`                                                     | Instructor/admin grade entry                                                   |
-| Reporting      | `/api/reporting`                                                  | Student and enrollment summaries                                               |
-| Realtime       | `/hubs/tms`                                                       | Enrollment, grade, and transcript-ready notifications                          |
-
-API versions are selected in the URL. V1 responses receive deprecation and successor-version headers. OpenAPI documents and the Scalar reference are mapped in Development only.
-
-## Data Model
-
-Students and courses are related many-to-many through `Enrollment`, which stores status, enrollment time, archive state, and optional grade. A unique database index on `(StudentId, CourseId)` prevents duplicate enrollment records; restricted deletes preserve enrollment history. Student soft deletion is implemented with an EF Core query filter. ASP.NET Core Identity users and roles share the application database.
-
-Development startup applies available migrations and inserts sample student/course data when needed. Transcript statuses, idempotency-key mappings, and generated transcript bytes are currently in-memory rather than persisted.
+| Area                       | Technologies                                                           |
+| -------------------------- | ---------------------------------------------------------------------- |
+| Runtime                    | .NET 10, ASP.NET Core                                                  |
+| Data                       | Entity Framework Core, PostgreSQL, Npgsql                              |
+| Identity                   | ASP.NET Core Identity, JWT bearer authentication                       |
+| Application                | MediatR, FluentValidation, dependency injection                        |
+| Realtime & background work | SignalR, hosted services, `System.Threading.Channels`                  |
+| Caching & resilience       | .NET HybridCache, Polly                                                |
+| Observability              | OpenTelemetry (OTLP), health checks, structured JSON console logs      |
+| Tests                      | xUnit, ASP.NET Core integration testing, EF Core InMemory, NSubstitute |
 
 ## Project Structure
 
 ```text
-TmsApi.Api/             HTTP controllers, middleware, auth, configuration, SignalR hub
-TmsApi.Application/     Use cases, DTOs, validation, service/repository contracts
-TmsApi.Domain/          Student, course, enrollment, and identity domain entities
-TmsApi.Infrastructure/  EF Core context/migrations, repositories, cache, workers, integrations
+TmsApi.Api/             HTTP API, auth, middleware, SignalR, configuration
+TmsApi.Application/     Use cases, DTOs, contracts, validation behaviors
+TmsApi.Domain/          Core entities and enrollment states
+TmsApi.Infrastructure/  Persistence, repositories, cache, workers, integrations
 TmsApi.Tests/           Unit and API integration tests
-docs/                   API versioning policy and development evidence
+docs/                   API versioning policy and project evidence
 ```
 
 ## Getting Started
 
-### Prerequisites
+**Prerequisites:** .NET 10 SDK and a reachable PostgreSQL database.
 
-- .NET 10 SDK
-- A running PostgreSQL instance
-
-### Configure and run
-
-The API requires `ConnectionStrings:TmsDatabase` and `Jwt:Key`. Keep these values in .NET user-secrets or environment variables, not in committed settings. The development settings provide the JWT issuer, audience, token lifetime, and allowed client origin.
-
-From the repository root, configure the required settings and start the API:
+Set the database connection string and a randomly generated JWT signing key of at least 32 bytes as user secrets; keep real credentials out of committed configuration. Development configuration supplies the JWT issuer and audience.
 
 ```powershell
 dotnet user-secrets set "ConnectionStrings:TmsDatabase" "Host=localhost;Port=5432;Database=tms;Username=postgres;Password=<your-password>" --project TmsApi.Api
-dotnet user-secrets set "Jwt:Key" "<a-random-secret-at-least-32-bytes-long>" --project TmsApi.Api
+dotnet user-secrets set "Jwt:Key" "<random-signing-key>" --project TmsApi.Api
 dotnet restore TmsApi.sln
 dotnet run --project TmsApi.Api
 ```
 
-The launch profiles use `http://localhost:5196` and `https://localhost:7220` (with HTTP also available on port `5196`). The API applies EF Core migrations during startup. In Development, OpenAPI and Scalar are enabled. PostgreSQL must be reachable using the configured connection string before startup.
+The API applies EF Core migrations at startup. Development startup also seeds sample academic data. Scalar and OpenAPI are available in Development; PostgreSQL must be configured and running.
 
-### Run tests
+Run the test suite:
 
 ```powershell
 dotnet test TmsApi.sln
 ```
 
-The test project includes handler unit tests and API tests hosted with an in-memory EF Core database.
-
 ## Engineering Highlights
 
-- **Clear project boundaries:** domain, application, infrastructure, and HTTP concerns are separated into solution projects; API endpoints use application abstractions or MediatR handlers where implemented.
-- **Business constraints at multiple levels:** enrollment checks are represented in application logic and reinforced by a unique database index; course ownership is checked through resource-based authorization.
-- **Consistent request handling:** MediatR validation/logging pipeline behaviors, FluentValidation, and centralized Problem Details exception handling make failures explicit.
-- **Resilient and bounded work:** transcript generation is queued on a bounded channel with a hosted worker; a configured Polly pipeline protects the certificate HTTP client, which currently targets a local API fixture rather than a configured third-party provider.
-- **Operational hooks:** health endpoints distinguish liveness from PostgreSQL readiness; ASP.NET Core, HTTP-client, and runtime telemetry are configured for OTLP export.
+- MediatR pipeline behaviors centralize request validation and structured request logging for handler-based workflows.
+- Course ownership is enforced with resource-based authorization; API limits are partitioned by anonymous/free/paid API-key tiers.
+- Transcript processing uses a bounded channel and hosted worker; transcript status, idempotency mappings, and file content are currently in memory and are lost on restart.
+- Polly timeout, retry, and circuit-breaker policies wrap the certificate HTTP client. Its configured target is the API's local fixture endpoint, not a production provider.
+- Liveness and PostgreSQL readiness are exposed separately; OpenTelemetry exports traces and metrics through OTLP.
 
-## Current Scope
+## Future Improvements
 
-This is an API-focused project with development/demo fixtures and sample data. In particular, transcript state and content are process-local, and the certificate client is exercised against an in-process fixture endpoint. Durable job storage and a production certificate-provider integration are not included.
+- Persist transcript jobs and generated files so processing state survives restarts.
+- Replace the certificate fixture with a configured production provider.
