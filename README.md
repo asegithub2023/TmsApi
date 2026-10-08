@@ -1,12 +1,23 @@
-# TmsApi | Training Management System
+<div align="center">
 
-An API-first training management system for course catalogs, student enrollment workflows, instructor decisions, and academic records.
+# TmsApi
+
+### Training Management System API
+
+**A Clean Architecture backend for managing courses, student enrollment, instructor approvals, grades, and transcripts.**
+
+Explore the full-stack project: **[TMS Client — Angular frontend](https://github.com/asegithub2023/tms-client-angular)**
 
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?logo=dotnet&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Npgsql-4169E1?logo=postgresql&logoColor=white)
-![Architecture](https://img.shields.io/badge/Architecture-layered-0A7B83)
+![Clean Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-0A7B83)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![ASP.NET Core](https://img.shields.io/badge/API-ASP.NET%20Core-512BD4?logo=dotnet&logoColor=white)
 
-> This repository contains the TmsApi backend. No frontend project is included in this solution.
+**Courses · Enrollments · Academic records · Transcripts**
+
+</div>
+
+> This repository contains the .NET 10 ASP.NET Core backend. The companion [Angular frontend](https://github.com/asegithub2023/tms-client-angular) lives in a separate repository—open it to explore the client application and see the project from both sides.
 
 ## Screenshots
 
@@ -45,8 +56,6 @@ flowchart LR
 | `TmsApi.Application`    | Enrollment use cases, request/response models, validation and logging pipeline behaviors, and service/repository interfaces.                |
 | `TmsApi.Domain`         | Core student, course, enrollment, and user entities and enrollment state.                                                                   |
 | `TmsApi.Infrastructure` | EF Core persistence and migrations, PostgreSQL integration, repositories, HybridCache service, external HTTP client, and transcript worker. |
-
-This describes the projects present in this repository; no `RealEstateApi` project or solution is included here.
 
 ## API Surface
 
